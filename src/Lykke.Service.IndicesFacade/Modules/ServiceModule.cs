@@ -1,4 +1,5 @@
 ﻿using Autofac;
+using Lykke.Service.IndicesFacade.Services;
 using Lykke.Service.IndicesFacade.Settings;
 using Lykke.SettingsReader;
 
@@ -15,7 +16,13 @@ namespace Lykke.Service.IndicesFacade.Modules
 
         protected override void Load(ContainerBuilder builder)
         {
-            // Do not register entire settings in container, pass necessary settings to services which requires them
+            var cryptoIndexInstances = _appSettings.CurrentValue.CryptoIndexServiceClient;
+            builder.RegisterInstance(cryptoIndexInstances).SingleInstance();
+
+            builder.RegisterType<IndicesFacadeService>()
+                   .SingleInstance();
+
+
         }
     }
 }

@@ -13,6 +13,6 @@
         /// <summary>
         /// Weight of the current constituent
         /// </summary>
-        public string Weight { get; set; }
+        public decimal Weight { get; set; }
     }
 }
