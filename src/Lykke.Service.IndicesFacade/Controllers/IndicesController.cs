@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Lykke.Service.IndicesFacade.Controllers
 {
+    [Route("/api/[controller]")]
     public class IndicesController : Controller, IIndicesFacadeApi
     {
         private readonly IndicesFacadeService _indicesFacadeService;
@@ -19,9 +20,8 @@ namespace Lykke.Service.IndicesFacade.Controllers
             _indicesFacadeService = indicesFacadeService;
         }
 
-        [HttpGet]
+        [HttpGet("")]
         [ProducesResponseType(typeof(IList<Index>), (int)HttpStatusCode.OK)]
-        [ResponseCache(Duration = 60, VaryByQueryKeys = new[] { "*" })]
         public async Task<IList<Index>> GetAllAsync()
         {
             return await _indicesFacadeService.GetAllAsync();

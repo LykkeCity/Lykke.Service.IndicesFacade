@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Common;
 using Common.Log;
 using Lykke.Common.Log;
@@ -16,7 +17,7 @@ using Lykke.Service.IndicesFacade.Settings;
 
 namespace Lykke.Service.IndicesFacade.Services
 {
-    public class IndicesFacadeService : IIndicesFacadeApi
+    public class IndicesFacadeService : IIndicesFacadeApi, IStartable, IStopable
     {
         private readonly CryptoIndexServiceClientInstancesSettings _cryptoIndexServiceClientInstancesSettings;
         private readonly ConcurrentDictionary<string, IPublicApi> _clients = new ConcurrentDictionary<string, IPublicApi>();
@@ -164,5 +165,24 @@ namespace Lykke.Service.IndicesFacade.Services
         {
             return history.Select(x => new HistoryElement {Timestamp = x.Key, Value = x.Value}).ToList();
         }
+
+        #region IStartable, IStopable
+
+        public void Start()
+        {
+            _trigger.Start();
+        }
+
+        public void Stop()
+        {
+            _trigger.Stop();
+        }
+
+        public void Dispose()
+        {
+            _trigger?.Dispose();
+        }
+
+        #endregion
     }
 }
