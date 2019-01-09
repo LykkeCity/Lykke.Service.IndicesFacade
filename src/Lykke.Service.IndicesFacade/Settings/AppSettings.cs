@@ -7,5 +7,7 @@ namespace Lykke.Service.IndicesFacade.Settings
     public class AppSettings : BaseAppSettings
     {
         public IndicesFacadeSettings IndicesFacadeService { get; set; }
+
+        public CryptoIndexServiceClientInstancesSettings CryptoIndexServiceClient { get; set; }
     }
 }
