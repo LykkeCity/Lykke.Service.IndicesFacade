@@ -1,0 +1,26 @@
+IndicesFacadeService:
+    Db:
+        LogsConnString:
+            settings-key: IndicesFacadeService-LogsConnString
+            types:
+              - AzureTableStorage
+
+CryptoIndexServiceClient:
+  Instances:
+    settings-key: CryptoIndexService-Instances
+    types:
+    - JsonArray
+
+SlackNotifications:
+    AzureQueue:
+        ConnectionString:
+            settings-key: SlackNotificationsConnString
+            types:
+                - AzureTableStorage
+        QueueName:
+            settings-key: SlackQueueName
+
+MonitoringServiceClient:
+    MonitoringServiceUrl:
+        settings-key: MonitoringServiceUrl
+
