@@ -14,6 +14,7 @@ using Lykke.Service.CryptoIndex.Client.Models;
 using Lykke.Service.IndicesFacade.Client;
 using Lykke.Service.IndicesFacade.Contract;
 using Lykke.Service.IndicesFacade.Settings;
+using TimeInterval = Lykke.Service.CryptoIndex.Client.Models.TimeInterval;
 
 namespace Lykke.Service.IndicesFacade.Services
 {
@@ -72,13 +73,13 @@ namespace Lykke.Service.IndicesFacade.Services
 
                 _indicesCache[assetId] = index;
 
-                var key24H = GetHistoryCacheKey(assetId, TimeInterval.Hour24);
+                var key24H = GetHistoryCacheKey(assetId, Contract.TimeInterval.Hour24);
                 _historyCache[key24H] = Map(history24H);
 
-                var key5D = GetHistoryCacheKey(assetId, TimeInterval.Day5);
+                var key5D = GetHistoryCacheKey(assetId, Contract.TimeInterval.Day5);
                 _historyCache[key5D] = Map(history5D);
 
-                var key30D = GetHistoryCacheKey(assetId, TimeInterval.Day30);
+                var key30D = GetHistoryCacheKey(assetId, Contract.TimeInterval.Day30);
                 _historyCache[key30D] = Map(history30D);
             }
         }
@@ -97,7 +98,7 @@ namespace Lykke.Service.IndicesFacade.Services
             return result;
         }
 
-        public async Task<IList<HistoryElement>> GetHistoryAsync(string assetId, TimeInterval timeInterval)
+        public async Task<IList<HistoryElement>> GetHistoryAsync(string assetId, Contract.TimeInterval timeInterval)
         {
             var key = GetHistoryCacheKey(assetId, timeInterval);
 
@@ -111,7 +112,7 @@ namespace Lykke.Service.IndicesFacade.Services
             return _clients.ContainsKey(assetId);
         }
 
-        private string GetHistoryCacheKey(string assetId, TimeInterval interval)
+        private string GetHistoryCacheKey(string assetId, Contract.TimeInterval interval)
         {
             return $"{assetId}-{interval}";
         }
