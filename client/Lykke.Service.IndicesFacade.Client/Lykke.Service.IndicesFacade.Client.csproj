@@ -28,4 +28,7 @@
     <PackageReference Include="Lykke.SettingsReader" Version="4.2.0" />
     <PackageReference Include="Refit" Version="4.6.58" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\contract\Lykke.Service.IndicesFacade.Contract\Lykke.Service.IndicesFacade.Contract.csproj" />
+  </ItemGroup>
 </Project>

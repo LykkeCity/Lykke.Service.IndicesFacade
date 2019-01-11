@@ -12,7 +12,7 @@ using Lykke.HttpClientGenerator.Infrastructure;
 using Lykke.Service.CryptoIndex.Client.Api;
 using Lykke.Service.CryptoIndex.Client.Models;
 using Lykke.Service.IndicesFacade.Client;
-using Lykke.Service.IndicesFacade.Client.Models;
+using Lykke.Service.IndicesFacade.Contract;
 using Lykke.Service.IndicesFacade.Settings;
 
 namespace Lykke.Service.IndicesFacade.Services

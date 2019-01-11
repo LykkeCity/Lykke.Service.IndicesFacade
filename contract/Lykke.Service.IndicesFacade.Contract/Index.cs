@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Lykke.Service.IndicesFacade.Client.Models
+namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
     /// Index with details.

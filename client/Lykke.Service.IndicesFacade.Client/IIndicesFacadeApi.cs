@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Lykke.Service.CryptoIndex.Client.Models;
-using Lykke.Service.IndicesFacade.Client.Models;
+using Lykke.Service.IndicesFacade.Contract;
 using Refit;
 
 namespace Lykke.Service.IndicesFacade.Client
