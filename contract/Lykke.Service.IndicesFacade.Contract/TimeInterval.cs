@@ -8,8 +8,8 @@ namespace Lykke.Service.IndicesFacade.Contract
     public enum TimeInterval
     {
         [EnumMember(Value = "Unspecified")] Unspecified,
-        [EnumMember(Value = "Hour24")] Hour24,
-        [EnumMember(Value = "Day5")] Day5,
-        [EnumMember(Value = "Day30")] Day30
+        [EnumMember(Value = "Hour24Chart")] Hour24Chart,
+        [EnumMember(Value = "Day5Chart")] Day5Chart,
+        [EnumMember(Value = "Day30Chart")] Day30Chart
     }
 }
