@@ -101,9 +101,9 @@ namespace Lykke.Service.IndicesFacade.Services
             _indicesUpdatesPublisher.Publish(index);
 
             // Update history for every interval and publish if needed
-            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Hour24Chart, updatedHistory24H);
-            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day5Chart, updatedHistory5D);
-            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day30Chart, updatedHistory30D);
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Hour24, updatedHistory24H);
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day5, updatedHistory5D);
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day30, updatedHistory30D);
         }
 
         private void UpdateHistoryCacheAndPublish(string assetId, Contract.TimeInterval timeInterval, IDictionary<DateTime, decimal> updatedHistory)
