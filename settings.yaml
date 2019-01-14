@@ -5,7 +5,7 @@ IndicesFacadeService:
             types:
               - AzureTableStorage
 
-    RabbitMqSettings:
+    RabbitMq:
         ConnectionString:
             settings-key: RawPriceRabbitMq
         SubscribeCryptoIndicesTickPricesExchange:
