@@ -100,46 +100,25 @@ namespace Lykke.Service.IndicesFacade.Services
             // Publish new index
             _indicesUpdatesPublisher.Publish(index);
 
-            // 24 hours
-            var key24H = GetHistoryCacheKey(assetId, Contract.TimeInterval.Hour24);
-            var previousHistory24H = _historyCache.ContainsKey(key24H) ? _historyCache[key24H] : new List<HistoryElement>();
-            var lastTimestampInUpdatedHistory24H = updatedHistory24H.Keys.Last();
-            var updateExistsInPreviousHistory24H = previousHistory24H.Any(x => x.Timestamp == lastTimestampInUpdatedHistory24H);
-            if (!updateExistsInPreviousHistory24H)
+            // Update history for every interval and publish if needed
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Hour24, updatedHistory24H);
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day5, updatedHistory5D);
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day30, updatedHistory30D);
+        }
+
+        private void UpdateHistoryCacheAndPublish(string assetId, Contract.TimeInterval timeInterval, IDictionary<DateTime, decimal> updatedHistory)
+        {
+            var cacheKey = GetHistoryCacheKey(assetId, timeInterval);
+            var previousHistory = _historyCache.ContainsKey(cacheKey) ? _historyCache[cacheKey] : new List<HistoryElement>();
+            var lastTimestampInUpdatedHistory = updatedHistory.Keys.Last();
+            var updateExistsInPreviousHistory = previousHistory.Any(x => x.Timestamp == lastTimestampInUpdatedHistory);
+            if (!updateExistsInPreviousHistory)
             {
-                _historyCache[key24H] = Map(updatedHistory24H);
+                _historyCache[cacheKey] = Map(updatedHistory);
 
-                // Publish new 24H index history element
-                var newHistory24H = Create(assetId, Contract.TimeInterval.Hour24, updatedHistory24H.Keys.Last(), updatedHistory24H.Values.Last());
-                _indicesHistoryUpdatesPublisher.Publish(newHistory24H);
-            }
-
-            // 5 days
-            var key5D = GetHistoryCacheKey(assetId, Contract.TimeInterval.Day5);
-            var previousHistory5D = _historyCache.ContainsKey(key5D) ? _historyCache[key5D] : new List<HistoryElement>();
-            var lastTimestampInUpdatedHistory5D = updatedHistory5D.Keys.Last();
-            var updateExistsInPreviousHistory5D = previousHistory5D.Any(x => x.Timestamp == lastTimestampInUpdatedHistory5D);
-            if (!updateExistsInPreviousHistory5D)
-            {
-                _historyCache[key5D] = Map(updatedHistory5D);
-
-                // Publish new 5D index history element
-                var newHistory5D = Create(assetId, Contract.TimeInterval.Day5, updatedHistory5D.Keys.Last(), updatedHistory5D.Values.Last());
-                _indicesHistoryUpdatesPublisher.Publish(newHistory5D);
-            }
-
-            // 30 days
-            var key30D = GetHistoryCacheKey(assetId, Contract.TimeInterval.Day30);
-            var previousHistory30D = _historyCache.ContainsKey(key30D) ? _historyCache[key30D] : new List<HistoryElement>();
-            var lastTimestampInUpdatedHistory30D = updatedHistory30D.Keys.Last();
-            var updateExistsInPreviousHistory30D = previousHistory30D.Any(x => x.Timestamp == lastTimestampInUpdatedHistory30D);
-            if (!updateExistsInPreviousHistory30D)
-            {
-                _historyCache[key30D] = Map(updatedHistory30D);
-
-                // Publish new 30D index history element
-                var newHistory30D = Create(assetId, Contract.TimeInterval.Day30, updatedHistory30D.Keys.Last(), updatedHistory30D.Values.Last());
-                _indicesHistoryUpdatesPublisher.Publish(newHistory30D);
+                // Publish new index history element
+                var newHistoryElement = Create(assetId, timeInterval, updatedHistory.Keys.Last(), updatedHistory.Values.Last());
+                _indicesHistoryUpdatesPublisher.Publish(newHistoryElement);
             }
         }
 
