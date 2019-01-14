@@ -6,5 +6,7 @@ namespace Lykke.Service.IndicesFacade.Settings
     public class IndicesFacadeSettings
     {
         public DbSettings Db { get; set; }
+
+        public RabbitMqSettings RabbitMq { get; set; }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace Lykke.Service.IndicesFacade.Client.Models
+namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
     /// Index history element.

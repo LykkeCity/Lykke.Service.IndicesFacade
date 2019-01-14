@@ -2,33 +2,36 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Autofac;
-using Common;
 using Common.Log;
 using Lykke.Common.Log;
 using Lykke.HttpClientGenerator.Infrastructure;
 using Lykke.Service.CryptoIndex.Client.Api;
 using Lykke.Service.CryptoIndex.Client.Models;
+using Lykke.Service.CryptoIndex.Contract;
 using Lykke.Service.IndicesFacade.Client;
-using Lykke.Service.IndicesFacade.Client.Models;
+using Lykke.Service.IndicesFacade.Contract;
+using Lykke.Service.IndicesFacade.RabbitMq.Publishers;
 using Lykke.Service.IndicesFacade.Settings;
+using TimeInterval = Lykke.Service.CryptoIndex.Client.Models.TimeInterval;
 
 namespace Lykke.Service.IndicesFacade.Services
 {
-    public class IndicesFacadeService : IIndicesFacadeApi, IStartable, IStopable
+    public class IndicesFacadeService : IIndicesFacadeApi
     {
         private readonly CryptoIndexServiceClientInstancesSettings _cryptoIndexServiceClientInstancesSettings;
         private readonly ConcurrentDictionary<string, IPublicApi> _clients = new ConcurrentDictionary<string, IPublicApi>();
         private readonly ConcurrentDictionary<string, Index> _indicesCache = new ConcurrentDictionary<string, Index>();
         private readonly ConcurrentDictionary<string, IList<HistoryElement>> _historyCache = new ConcurrentDictionary<string, IList<HistoryElement>>();
-
-        private readonly TimerTrigger _trigger;
+        private readonly IndicesUpdatesPublisher _indicesUpdatesPublisher;
+        private readonly IndicesHistoryUpdatesPublisher _indicesHistoryUpdatesPublisher;
 
         private readonly ILog _log;
 
-        public IndicesFacadeService(CryptoIndexServiceClientInstancesSettings cryptoIndexServiceClientInstancesSettings, ILogFactory logFactory)
+        public IndicesFacadeService(CryptoIndexServiceClientInstancesSettings cryptoIndexServiceClientInstancesSettings,
+            IndicesUpdatesPublisher indicesUpdatesPublisher,
+            IndicesHistoryUpdatesPublisher indicesHistoryUpdatesPublisher,
+            ILogFactory logFactory)
         {
             _cryptoIndexServiceClientInstancesSettings = cryptoIndexServiceClientInstancesSettings;
 
@@ -38,49 +41,10 @@ namespace Lykke.Service.IndicesFacade.Services
                 _clients[instance.AssetId] = client;
             }
 
-            _trigger = new TimerTrigger(nameof(IndicesFacadeService), TimeSpan.FromSeconds(15), logFactory, Execute);
+            _indicesUpdatesPublisher = indicesUpdatesPublisher;
+            _indicesHistoryUpdatesPublisher = indicesHistoryUpdatesPublisher;
 
             _log = logFactory.CreateLog(this);
-        }
-
-        public async Task Execute(ITimerTrigger timer, TimerTriggeredHandlerArgs args, CancellationToken cancellationToken)
-        {
-            try
-            {
-                await Execute();
-            }
-            catch (Exception ex)
-            {
-                _log.Error(ex);
-            }
-        }
-
-        private async Task Execute()
-        {
-            foreach (var assetId in _clients.Keys.ToList())
-            {
-                var publicApi = _clients[assetId];
-
-                var indexHistory = await publicApi.GetLastAsync();
-                var keyNumbers = await publicApi.GetKeyNumbers();
-
-                var history24H = await publicApi.GetIndexHistory(TimeInterval.Hour24);
-                var history5D = await publicApi.GetIndexHistory(TimeInterval.Day5);
-                var history30D = await publicApi.GetIndexHistory(TimeInterval.Day30);
-
-                var index = Map(assetId, indexHistory, keyNumbers);
-
-                _indicesCache[assetId] = index;
-
-                var key24H = GetHistoryCacheKey(assetId, TimeInterval.Hour24);
-                _historyCache[key24H] = Map(history24H);
-
-                var key5D = GetHistoryCacheKey(assetId, TimeInterval.Day5);
-                _historyCache[key5D] = Map(history5D);
-
-                var key30D = GetHistoryCacheKey(assetId, TimeInterval.Day30);
-                _historyCache[key30D] = Map(history30D);
-            }
         }
 
         public async Task<IList<Index>> GetAllAsync()
@@ -97,7 +61,7 @@ namespace Lykke.Service.IndicesFacade.Services
             return result;
         }
 
-        public async Task<IList<HistoryElement>> GetHistoryAsync(string assetId, TimeInterval timeInterval)
+        public async Task<IList<HistoryElement>> GetHistoryAsync(string assetId, Contract.TimeInterval timeInterval)
         {
             var key = GetHistoryCacheKey(assetId, timeInterval);
 
@@ -111,7 +75,58 @@ namespace Lykke.Service.IndicesFacade.Services
             return _clients.ContainsKey(assetId);
         }
 
-        private string GetHistoryCacheKey(string assetId, TimeInterval interval)
+        public async Task Handle(IndexTickPrice indexTickPrice)
+        {
+            var assetId = MapIndexNameToAssetId(indexTickPrice.AssetPair);
+
+            await UpdateIndexCache(assetId);
+        }
+
+        private async Task UpdateIndexCache(string assetId)
+        {
+            var publicApi = _clients[assetId];
+
+            var indexHistory = await publicApi.GetLastAsync();
+            var keyNumbers = await publicApi.GetKeyNumbers();
+
+            var updatedHistory24H = await publicApi.GetIndexHistory(TimeInterval.Hour24);
+            var updatedHistory5D = await publicApi.GetIndexHistory(TimeInterval.Day5);
+            var updatedHistory30D = await publicApi.GetIndexHistory(TimeInterval.Day30);
+
+            var index = Map(assetId, indexHistory, keyNumbers);
+
+            _indicesCache[assetId] = index;
+
+            // Publish new index
+            _indicesUpdatesPublisher.Publish(index);
+
+            // Update history for every interval and publish if needed
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Hour24Chart, updatedHistory24H);
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day5Chart, updatedHistory5D);
+            UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day30Chart, updatedHistory30D);
+        }
+
+        private void UpdateHistoryCacheAndPublish(string assetId, Contract.TimeInterval timeInterval, IDictionary<DateTime, decimal> updatedHistory)
+        {
+            var cacheKey = GetHistoryCacheKey(assetId, timeInterval);
+
+            if (!_historyCache.ContainsKey(cacheKey))
+                _historyCache[cacheKey] = Map(updatedHistory);
+
+            var previousHistory = _historyCache[cacheKey];
+            var lastTimestampInUpdatedHistory = updatedHistory.Keys.Last();
+            var updateExistsInPreviousHistory = previousHistory.Any(x => x.Timestamp == lastTimestampInUpdatedHistory);
+            if (!updateExistsInPreviousHistory)
+            {
+                _historyCache[cacheKey] = Map(updatedHistory);
+
+                // Publish new index history element
+                var newHistoryElement = Create(assetId, timeInterval, updatedHistory.Keys.Last(), updatedHistory.Values.Last());
+                _indicesHistoryUpdatesPublisher.Publish(newHistoryElement);
+            }
+        }
+
+        private string GetHistoryCacheKey(string assetId, Contract.TimeInterval interval)
         {
             return $"{assetId}-{interval}";
         }
@@ -166,23 +181,29 @@ namespace Lykke.Service.IndicesFacade.Services
             return history.Select(x => new HistoryElement {Timestamp = x.Key, Value = x.Value}).ToList();
         }
 
-        #region IStartable, IStopable
-
-        public void Start()
+        private string MapIndexNameToAssetId(string indexName)
         {
-            _trigger.Start();
+            var indexSettings = _cryptoIndexServiceClientInstancesSettings
+                .Instances
+                .SingleOrDefault(x => x.DisplayName == indexName);
+
+            if (indexSettings == null)
+                throw new InvalidOperationException($"Can't find index assetId by index name '{indexName}'. " +
+                                                    $"Compare KeyValue 'CryptoIndexService-Instances' in settings to 'Source' fields in CryptoIndex services settings.");
+
+            return indexSettings.AssetId;
         }
 
-        public void Stop()
+        private HistoryElementUpdate Create(string assetId, Contract.TimeInterval timeInterval, DateTime timestamp, decimal value)
         {
-            _trigger.Stop();
-        }
+            var result = new HistoryElementUpdate
+            {
+                AssetId = assetId,
+                HistoryElement = new HistoryElement { Timestamp = timestamp, Value = value },
+                TimeInterval = timeInterval
+            };
 
-        public void Dispose()
-        {
-            _trigger?.Dispose();
+            return result;
         }
-
-        #endregion
     }
 }

@@ -2,9 +2,8 @@
 using System.Net;
 using System.Threading.Tasks;
 using Lykke.Common.ApiLibrary.Exceptions;
-using Lykke.Service.CryptoIndex.Client.Models;
 using Lykke.Service.IndicesFacade.Client;
-using Lykke.Service.IndicesFacade.Client.Models;
+using Lykke.Service.IndicesFacade.Contract;
 using Lykke.Service.IndicesFacade.Services;
 using Microsoft.AspNetCore.Mvc;
 
