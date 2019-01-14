@@ -5,6 +5,16 @@ IndicesFacadeService:
             types:
               - AzureTableStorage
 
+    RabbitMqSettings:
+        ConnectionString:
+            settings-key: IndicesFacadeService-ConnectionString
+        SubscribeCryptoIndicesTickPricesExchange:
+            settings-key: IndicesFacadeService-SubscribeCryptoIndicesTickPricesExchange
+        PublishIndicesUpdatesExchange:
+            settings-key: IndicesFacadeService-PublishIndicesUpdatesExchange
+        PublishIndicesHistoryUpdatesExchange:
+            settings-key: IndicesFacadeService-PublishIndicesHistoryUpdatesExchange
+
 CryptoIndexServiceClient:
   Instances:
     settings-key: CryptoIndexService-Instances
