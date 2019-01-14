@@ -79,19 +79,59 @@ namespace Lykke.Service.IndicesFacade.Services
         {
             var assetId = MapIndexNameToAssetId(indexTickPrice.AssetPair);
 
-            await UpdateIndexCache(assetId);
+            try
+            {
+                await UpdateIndexCache(assetId);
+            }
+            catch (Exception ex)
+            {
+                _log.Warning("", ex);
+            }
         }
 
         private async Task UpdateIndexCache(string assetId)
         {
             var publicApi = _clients[assetId];
 
-            var indexHistory = await publicApi.GetLastAsync();
-            var keyNumbers = await publicApi.GetKeyNumbers();
+            PublicIndexHistory indexHistory;
+            try
+            {
+                indexHistory = await publicApi.GetLastAsync();
+            }
+            catch (Exception ex)
+            {
+                _log.Warning($"Something went wrong while {nameof(publicApi.GetLastAsync)} element from '{MapAssetIdToIndexName(assetId)}': ", ex);
 
-            var updatedHistory24H = await publicApi.GetIndexHistory(TimeInterval.Hour24);
-            var updatedHistory5D = await publicApi.GetIndexHistory(TimeInterval.Day5);
-            var updatedHistory30D = await publicApi.GetIndexHistory(TimeInterval.Day30);
+                return;
+            }
+
+            KeyNumbers keyNumbers;
+            try
+            {
+                keyNumbers = await publicApi.GetKeyNumbers();
+            }
+            catch (Exception ex)
+            {
+                _log.Warning($"Something went wrong while requesting {nameof(publicApi.GetKeyNumbers)} from '{MapAssetIdToIndexName(assetId)}': ", ex);
+
+                return;
+            }
+
+            IDictionary<DateTime, decimal> updatedHistory24H;
+            IDictionary<DateTime, decimal> updatedHistory5D;
+            IDictionary<DateTime, decimal> updatedHistory30D;
+            try
+            {
+                updatedHistory24H = await publicApi.GetIndexHistory(TimeInterval.Hour24);
+                updatedHistory5D = await publicApi.GetIndexHistory(TimeInterval.Day5);
+                updatedHistory30D = await publicApi.GetIndexHistory(TimeInterval.Day30);
+            }
+            catch (Exception ex)
+            {
+                _log.Warning($"Something went wrong while requesting history from '{MapAssetIdToIndexName(assetId)}': ", ex);
+
+                return;
+            }
 
             var index = Map(assetId, indexHistory, keyNumbers);
 
@@ -192,6 +232,19 @@ namespace Lykke.Service.IndicesFacade.Services
                                                     $"Compare KeyValue 'CryptoIndexService-Instances' in settings to 'Source' fields in CryptoIndex services settings.");
 
             return indexSettings.AssetId;
+        }
+
+        private string MapAssetIdToIndexName(string assetId)
+        {
+            var indexSettings = _cryptoIndexServiceClientInstancesSettings
+                .Instances
+                .SingleOrDefault(x => x.AssetId == assetId);
+
+            if (indexSettings == null)
+                throw new InvalidOperationException($"Can't find index index name by assetId '{assetId}'. " +
+                                                    $"Compare KeyValue 'CryptoIndexService-Instances' in settings to 'Source' fields in CryptoIndex services settings.");
+
+            return indexSettings.DisplayName;
         }
 
         private HistoryElementUpdate Create(string assetId, Contract.TimeInterval timeInterval, DateTime timestamp, decimal value)
