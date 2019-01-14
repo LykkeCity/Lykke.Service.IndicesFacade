@@ -7,7 +7,7 @@ IndicesFacadeService:
 
     RabbitMqSettings:
         ConnectionString:
-            settings-key: IndicesFacadeService-ConnectionString
+            settings-key: RawPriceRabbitMq
         SubscribeCryptoIndicesTickPricesExchange:
             settings-key: IndicesFacadeService-SubscribeCryptoIndicesTickPricesExchange
         PublishIndicesUpdatesExchange:
