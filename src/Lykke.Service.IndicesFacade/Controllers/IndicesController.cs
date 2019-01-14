@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Lykke.Service.IndicesFacade.Controllers
 {
     [Route("/api/[controller]")]
-    internal class IndicesController : Controller, IIndicesFacadeApi
+    public class IndicesController : Controller, IIndicesFacadeApi
     {
         private readonly IndicesFacadeService _indicesFacadeService;
 

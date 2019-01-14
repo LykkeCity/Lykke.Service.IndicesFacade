@@ -9,7 +9,7 @@ using Lykke.Service.IndicesFacade.Settings;
 
 namespace Lykke.Service.IndicesFacade.RabbitMq.Publishers
 {
-    internal sealed class IndicesUpdatesPublisher : IStartable, IStopable
+    public sealed class IndicesUpdatesPublisher : IStartable, IStopable
     {
         private readonly ILogFactory _logFactory;
         private readonly RabbitMqSettings _settings;

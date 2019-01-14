@@ -17,7 +17,7 @@ using TimeInterval = Lykke.Service.CryptoIndex.Client.Models.TimeInterval;
 
 namespace Lykke.Service.IndicesFacade.Services
 {
-    internal class IndicesFacadeService : IIndicesFacadeApi
+    public class IndicesFacadeService : IIndicesFacadeApi
     {
         private readonly CryptoIndexServiceClientInstancesSettings _cryptoIndexServiceClientInstancesSettings;
         private readonly ConcurrentDictionary<string, IPublicApi> _clients = new ConcurrentDictionary<string, IPublicApi>();
@@ -109,6 +109,10 @@ namespace Lykke.Service.IndicesFacade.Services
         private void UpdateHistoryCacheAndPublish(string assetId, Contract.TimeInterval timeInterval, IDictionary<DateTime, decimal> updatedHistory)
         {
             var cacheKey = GetHistoryCacheKey(assetId, timeInterval);
+
+            if (!_historyCache.ContainsKey(cacheKey))
+                _historyCache[cacheKey] = Map(updatedHistory);
+
             var previousHistory = _historyCache.ContainsKey(cacheKey) ? _historyCache[cacheKey] : new List<HistoryElement>();
             var lastTimestampInUpdatedHistory = updatedHistory.Keys.Last();
             var updateExistsInPreviousHistory = previousHistory.Any(x => x.Timestamp == lastTimestampInUpdatedHistory);
@@ -196,7 +200,7 @@ namespace Lykke.Service.IndicesFacade.Services
             {
                 AssetId = assetId,
                 HistoryElement = new HistoryElement { Timestamp = timestamp, Value = value },
-                TimeInterval = Contract.TimeInterval.Day5
+                TimeInterval = timeInterval
             };
 
             return result;
