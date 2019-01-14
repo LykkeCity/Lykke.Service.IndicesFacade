@@ -113,7 +113,7 @@ namespace Lykke.Service.IndicesFacade.Services
             if (!_historyCache.ContainsKey(cacheKey))
                 _historyCache[cacheKey] = Map(updatedHistory);
 
-            var previousHistory = _historyCache.ContainsKey(cacheKey) ? _historyCache[cacheKey] : new List<HistoryElement>();
+            var previousHistory = _historyCache[cacheKey];
             var lastTimestampInUpdatedHistory = updatedHistory.Keys.Last();
             var updateExistsInPreviousHistory = previousHistory.Any(x => x.Timestamp == lastTimestampInUpdatedHistory);
             if (!updateExistsInPreviousHistory)
