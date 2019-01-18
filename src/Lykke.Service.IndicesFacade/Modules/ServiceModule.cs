@@ -1,5 +1,6 @@
 ﻿using Autofac;
 using Common;
+using Lykke.Service.Assets.Client;
 using Lykke.Service.IndicesFacade.RabbitMq.Publishers;
 using Lykke.Service.IndicesFacade.RabbitMq.Subscribers;
 using Lykke.Service.IndicesFacade.Services;
@@ -23,6 +24,9 @@ namespace Lykke.Service.IndicesFacade.Modules
         {
             var cryptoIndexInstances = _appSettings.CurrentValue.CryptoIndexServiceClient;
             builder.RegisterInstance(cryptoIndexInstances).SingleInstance();
+
+            builder.RegisterAssetsClient(new AssetServiceSettings {
+                ServiceUrl = _appSettings.CurrentValue.AssetsServiceClient.ServiceUrl });
 
             builder.RegisterType<IndicesFacadeService>()
                    .AsSelf()

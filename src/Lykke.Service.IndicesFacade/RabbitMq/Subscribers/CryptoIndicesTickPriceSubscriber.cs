@@ -39,7 +39,7 @@ namespace Lykke.Service.IndicesFacade.RabbitMq.Subscribers
             {
                 ConnectionString = _settings.ConnectionString,
                 ExchangeName = _settings.SubscribeCryptoIndicesTickPricesExchange,
-                QueueName = _settings.SubscribeCryptoIndicesTickPricesExchange + "IndicesFacade",
+                QueueName = _settings.SubscribeCryptoIndicesTickPricesExchange + ".IndicesFacade",
                 IsDurable = false
             };
 
