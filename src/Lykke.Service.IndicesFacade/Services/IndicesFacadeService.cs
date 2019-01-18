@@ -8,6 +8,7 @@ using Lykke.Common.Log;
 using Lykke.HttpClientGenerator.Infrastructure;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
+using Lykke.Service.Assets.Client.ReadModels;
 using Lykke.Service.CryptoIndex.Client.Api;
 using Lykke.Service.CryptoIndex.Client.Models;
 using Lykke.Service.CryptoIndex.Contract;
@@ -27,7 +28,7 @@ namespace Lykke.Service.IndicesFacade.Services
         private readonly ConcurrentDictionary<string, IList<HistoryElement>> _assetIdIntervalsHistoriesCache = new ConcurrentDictionary<string, IList<HistoryElement>>();
         private readonly IndicesUpdatesPublisher _indicesUpdatesPublisher;
         private readonly IndicesHistoryUpdatesPublisher _indicesHistoryUpdatesPublisher;
-        private readonly IAssetsService _assetsService;
+        private readonly IAssetsReadModelRepository _assetsReadModelRepository;
 
         private readonly ConcurrentDictionary<string, string> _assetIdsDisplayIds
             = new ConcurrentDictionary<string, string>();
@@ -37,7 +38,7 @@ namespace Lykke.Service.IndicesFacade.Services
         public IndicesFacadeService(CryptoIndexServiceClientInstancesSettings cryptoIndexServiceClientInstancesSettings,
             IndicesUpdatesPublisher indicesUpdatesPublisher,
             IndicesHistoryUpdatesPublisher indicesHistoryUpdatesPublisher,
-            IAssetsService assetsService,
+            IAssetsReadModelRepository assetsReadModelRepository,
             ILogFactory logFactory)
         {
             _cryptoIndexServiceClientInstancesSettings = cryptoIndexServiceClientInstancesSettings;
@@ -51,7 +52,7 @@ namespace Lykke.Service.IndicesFacade.Services
             _indicesUpdatesPublisher = indicesUpdatesPublisher;
             _indicesHistoryUpdatesPublisher = indicesHistoryUpdatesPublisher;
 
-            _assetsService = assetsService;
+            _assetsReadModelRepository = assetsReadModelRepository;
             InitializeAssetsDisplayIds();
 
             _log = logFactory.CreateLog(this);
@@ -101,22 +102,17 @@ namespace Lykke.Service.IndicesFacade.Services
 
         private void InitializeAssetsDisplayIds()
         {
-            try
+            foreach (var assetId in _assetIdsClients.Keys.ToList())
             {
-                var allAssets = _assetsService.AssetGetAll();
-                foreach (var assetId in _assetIdsClients.Keys.ToList())
-                {
-                    var asset = allAssets.Single(x => x.Id == assetId);
+                var asset = _assetsReadModelRepository.TryGet(assetId);
+                if (asset != null)
                     _assetIdsDisplayIds[assetId] = asset.DisplayId;
-                }
-            }
-            catch (Exception)
-            {
-                foreach (var assetId in _assetIdsClients.Keys.ToList())
+                else
+                {
                     _assetIdsDisplayIds[assetId] = _cryptoIndexServiceClientInstancesSettings.Instances
                         .Single(x => x.AssetId == assetId).IndexName;
-
-                _log.Warning("Couldn't initialize DisplayIds from Assets Service. Assigned 'IndexName' from the settings.");
+                    _log.Warning($"Did not find assetId '{assetId}' in the Assets Service. Assigned 'IndexName' from the settings.");
+                }
             }
         }
 

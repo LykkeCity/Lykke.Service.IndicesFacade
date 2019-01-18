@@ -1,5 +1,6 @@
 ﻿using JetBrains.Annotations;
 using Lykke.Sdk.Settings;
+using Lykke.Service.Assets.Client;
 
 namespace Lykke.Service.IndicesFacade.Settings
 {
@@ -10,6 +11,6 @@ namespace Lykke.Service.IndicesFacade.Settings
 
         public CryptoIndexServiceClientInstancesSettings CryptoIndexServiceClient { get; set; }
 
-        public AssetsServiceClientSettings AssetsServiceClient { get; set; }
+        public AssetServiceSettings AssetsServiceClient { get; set; }
     }
 }
