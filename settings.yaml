@@ -21,6 +21,10 @@ CryptoIndexServiceClient:
     types:
     - JsonArray
 
+AssetsServiceClient:
+  ServiceUrl:
+    settings-key: AssetsServiceUrl
+
 SlackNotifications:
     AzureQueue:
         ConnectionString:
