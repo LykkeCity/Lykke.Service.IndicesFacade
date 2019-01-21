@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 using Common.Log;
 using Lykke.Common.Log;
 using Lykke.HttpClientGenerator.Infrastructure;
-using Lykke.Service.Assets.Client;
-using Lykke.Service.Assets.Client.Models;
 using Lykke.Service.Assets.Client.ReadModels;
 using Lykke.Service.CryptoIndex.Client.Api;
 using Lykke.Service.CryptoIndex.Client.Models;
