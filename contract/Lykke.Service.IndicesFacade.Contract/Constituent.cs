@@ -14,5 +14,10 @@
         /// Weight of the current constituent
         /// </summary>
         public decimal Weight { get; set; }
+
+        /// <summary>
+        /// Price of the current constituent
+        /// </summary>
+        public decimal Price { get; set; }
     }
 }
