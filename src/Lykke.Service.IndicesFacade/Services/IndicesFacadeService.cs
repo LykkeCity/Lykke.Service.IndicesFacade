@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 using Common.Log;
 using Lykke.Common.Log;
 using Lykke.HttpClientGenerator.Infrastructure;
-using Lykke.Service.Assets.Client;
-using Lykke.Service.Assets.Client.Models;
 using Lykke.Service.Assets.Client.ReadModels;
 using Lykke.Service.CryptoIndex.Client.Api;
 using Lykke.Service.CryptoIndex.Client.Models;
@@ -16,6 +14,7 @@ using Lykke.Service.IndicesFacade.Client;
 using Lykke.Service.IndicesFacade.Contract;
 using Lykke.Service.IndicesFacade.RabbitMq.Publishers;
 using Lykke.Service.IndicesFacade.Settings;
+using Microsoft.Rest;
 using TimeInterval = Lykke.Service.CryptoIndex.Client.Models.TimeInterval;
 
 namespace Lykke.Service.IndicesFacade.Services
@@ -217,7 +216,7 @@ namespace Lykke.Service.IndicesFacade.Services
             {
                 AssetId = assetId,
                 Name = _assetIdsDisplayIds[assetId],
-                Composition = Map(indexHistory.Weights),
+                Composition = Map(indexHistory.Weights, indexHistory.MiddlePrices),
                 Value = indexHistory.Value,
                 Timestamp = indexHistory.Time,
                 // key numbers
@@ -231,14 +230,30 @@ namespace Lykke.Service.IndicesFacade.Services
             };
         }
 
-        private IList<Constituent> Map(IDictionary<string, decimal> weights)
+        private IList<Constituent> Map(IDictionary<string, decimal> weights, IDictionary<string, decimal> prices)
         {
-            return weights.Select(x => new Constituent
+            if (weights.Count != prices.Count)
+                throw new ValidationException($"Count of weights ({weights.Count}) and count of prices ({prices.Count}) are not equals.");
+
+            var result = new List<Constituent>();
+
+            foreach (var assetWeight in weights)
+            {
+                var asset = assetWeight.Key;
+                var weight = assetWeight.Value;
+                var price = prices[asset];
+
+                var constituent = new Constituent
                 {
-                    AssetId = x.Key,
-                    Weight = x.Value
-                })
-                .ToList();
+                    AssetId = asset,
+                    Weight = weight,
+                    Price = price
+                };
+
+                result.Add(constituent);
+            }
+
+            return result;
         }
 
         private IList<HistoryElement> Map(IDictionary<DateTime, decimal> history)
