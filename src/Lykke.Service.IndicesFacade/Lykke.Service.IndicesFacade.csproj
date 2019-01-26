@@ -32,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\client\Lykke.Service.IndicesFacade.Client\Lykke.Service.IndicesFacade.Client.csproj" />
+    <ProjectReference Include="..\..\contract\Lykke.Service.IndicesFacade.Contract\Lykke.Service.IndicesFacade.Contract.csproj" />
   </ItemGroup>
   <Target Name="PrepublishScript" BeforeTargets="PrepareForPublish">
     <ItemGroup>

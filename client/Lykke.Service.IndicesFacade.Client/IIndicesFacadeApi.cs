@@ -29,5 +29,11 @@ namespace Lykke.Service.IndicesFacade.Client
         /// </summary>
         [Get("/api/indices/{assetId}/history/{timeInterval}")]
         Task<IList<HistoryElement>> GetHistoryAsync(string assetId, TimeInterval timeInterval);
+
+        /// <summary>
+        /// Returns asset infos
+        /// </summary>
+        [Get("/api/indices/{assetId}/assetInfos")]
+        Task<IList<AssetInfo>> GetAssetInfosAsync(string assetId);
     }
 }

@@ -52,6 +52,13 @@ namespace Lykke.Service.IndicesFacade.Modules
                 .As<IStopable>()
                 .WithParameter(TypedParameter.From(_settings.RabbitMq))
                 .SingleInstance();
+
+            builder.RegisterType<IndicesPriceUpdatesPublisher>()
+                .AsSelf()
+                .As<IStartable>()
+                .As<IStopable>()
+                .WithParameter(TypedParameter.From(_settings.RabbitMq))
+                .SingleInstance();
         }
     }
 }

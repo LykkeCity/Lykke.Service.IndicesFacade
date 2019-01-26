@@ -12,5 +12,7 @@ namespace Lykke.Service.IndicesFacade.Settings
         public string PublishIndicesUpdatesExchange { get; set; }
 
         public string PublishIndicesHistoryUpdatesExchange { get; set; }
+
+        public string PublishIndicesPriceUpdatesExchange { get; set; }
     }
 }

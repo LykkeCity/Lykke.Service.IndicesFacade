@@ -4,6 +4,9 @@ using Newtonsoft.Json.Converters;
 
 namespace Lykke.Service.IndicesFacade.Contract
 {
+    /// <summary>
+    /// Time intervals
+    /// </summary>
     [JsonConverter(typeof(StringEnumConverter))]
     public enum TimeInterval
     {

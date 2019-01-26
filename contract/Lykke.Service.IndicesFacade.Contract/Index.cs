@@ -67,5 +67,11 @@ namespace Lykke.Service.IndicesFacade.Contract
         /// Volatility for the last 30 days
         /// </summary>
         public decimal Volatility30D { get; set; }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return $"{Name}, {Value}, {Timestamp}";
+        }
     }
 }

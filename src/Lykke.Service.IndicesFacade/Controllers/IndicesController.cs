@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using Lykke.Common.ApiLibrary.Exceptions;
 using Lykke.Service.IndicesFacade.Client;
 using Lykke.Service.IndicesFacade.Contract;
 using Lykke.Service.IndicesFacade.Services;
 using Microsoft.AspNetCore.Mvc;
+using ValidationApiException = Lykke.Common.ApiLibrary.Exceptions.ValidationApiException;
 
 namespace Lykke.Service.IndicesFacade.Controllers
 {
@@ -57,6 +57,21 @@ namespace Lykke.Service.IndicesFacade.Controllers
                 throw new ValidationApiException(HttpStatusCode.BadRequest, "Please fill 'timeInterval' parameter.");
 
             return await _indicesFacadeService.GetHistoryAsync(assetId, timeInterval);
+        }
+
+        [HttpGet("{assetId}/assetInfos")]
+        [ProducesResponseType(typeof(IList<AssetInfo>), (int)HttpStatusCode.OK)]
+        [ProducesResponseType((int)HttpStatusCode.NotFound)]
+        [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+        public async Task<IList<AssetInfo>> GetAssetInfosAsync(string assetId)
+        {
+            if (string.IsNullOrWhiteSpace(assetId))
+                throw new ValidationApiException(HttpStatusCode.BadRequest, "Please fill 'assetId' parameter.");
+
+            if (!_indicesFacadeService.IsPresent(assetId))
+                throw new ValidationApiException(HttpStatusCode.NotFound, $"Index is not found by 'assetId' : {assetId}.");
+
+            return await _indicesFacadeService.GetAssetInfosAsync(assetId);
         }
     }
 }
