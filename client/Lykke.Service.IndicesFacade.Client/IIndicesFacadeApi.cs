@@ -33,7 +33,7 @@ namespace Lykke.Service.IndicesFacade.Client
         /// <summary>
         /// Returns asset infos
         /// </summary>
-        [Get("/api/indices/{assetId}/assetInfos")]
+        [Get("/api/indices/{assetId}/assetsInfo")]
         Task<IList<AssetInfo>> GetAssetInfosAsync(string assetId);
     }
 }

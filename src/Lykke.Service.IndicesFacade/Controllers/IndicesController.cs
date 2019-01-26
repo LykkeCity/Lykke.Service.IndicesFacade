@@ -59,7 +59,7 @@ namespace Lykke.Service.IndicesFacade.Controllers
             return await _indicesFacadeService.GetHistoryAsync(assetId, timeInterval);
         }
 
-        [HttpGet("{assetId}/assetInfos")]
+        [HttpGet("{assetId}/assetsInfo")]
         [ProducesResponseType(typeof(IList<AssetInfo>), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
         [ProducesResponseType((int)HttpStatusCode.BadRequest)]
