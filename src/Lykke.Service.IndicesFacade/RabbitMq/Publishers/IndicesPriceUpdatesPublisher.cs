@@ -13,7 +13,7 @@ namespace Lykke.Service.IndicesFacade.RabbitMq.Publishers
     {
         private readonly ILogFactory _logFactory;
         private readonly RabbitMqSettings _settings;
-        private RabbitMqPublisher<AssetsInfoUpdate> _publisher;
+        private RabbitMqPublisher<AssetPricesUpdate> _publisher;
         private readonly ILog _log;
 
         public IndicesPriceUpdatesPublisher(RabbitMqSettings settings, ILogFactory logFactory)
@@ -28,7 +28,7 @@ namespace Lykke.Service.IndicesFacade.RabbitMq.Publishers
             _publisher?.Dispose();
         }
 
-        public void Publish(AssetsInfoUpdate index, string indexName)
+        public void Publish(AssetPricesUpdate index, string indexName)
         {
             _publisher.ProduceAsync(index);
 
@@ -40,8 +40,8 @@ namespace Lykke.Service.IndicesFacade.RabbitMq.Publishers
             var settings = RabbitMqSubscriptionSettings
                 .ForPublisher(_settings.ConnectionString, _settings.PublishIndicesPriceUpdatesExchange);
 
-            _publisher = new RabbitMqPublisher<AssetsInfoUpdate>(_logFactory, settings)
-                .SetSerializer(new JsonMessageSerializer<AssetsInfoUpdate>())
+            _publisher = new RabbitMqPublisher<AssetPricesUpdate>(_logFactory, settings)
+                .SetSerializer(new JsonMessageSerializer<AssetPricesUpdate>())
                 .DisableInMemoryQueuePersistence()
                 .Start();
         }

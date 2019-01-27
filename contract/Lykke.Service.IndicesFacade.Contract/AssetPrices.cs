@@ -3,29 +3,24 @@
 namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
-    /// Represents information about the asset.
+    /// Represents asset prices
     /// </summary>
-    public class AssetInfo
+    public class AssetPrices
     {
         /// <summary>
-        /// Asset name
+        /// Asset id
         /// </summary>
         public string AssetId { get; set; }
 
         /// <summary>
-        /// Market capitalization of the asset
-        /// </summary>
-        public decimal MarketCap { get; set; }
-
-        /// <summary>
-        /// Prices of the asset
+        /// Asset prices
         /// </summary>
         public IList<SourcePrice> Prices { get; set; } = new List<SourcePrice>();
 
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"{AssetId}, MarketCap: {MarketCap}, Prices: [{Prices.Count}]";
+            return $"{AssetId}, Prices: [{Prices.Count}]";
         }
     }
 }

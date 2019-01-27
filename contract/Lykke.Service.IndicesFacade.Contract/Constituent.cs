@@ -20,6 +20,11 @@
         /// </summary>
         public decimal Price { get; set; }
 
+        /// <summary>
+        /// Calculated market capitalization in USD
+        /// </summary>
+        public decimal MarketCap { get; set; }
+
         /// <inheritdoc/>
         public override string ToString()
         {

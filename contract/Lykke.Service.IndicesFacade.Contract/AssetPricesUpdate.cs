@@ -3,12 +3,12 @@
 namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
-    /// Represents an index assets info update
+    /// Represents an asset prices update
     /// </summary>
-    public class AssetsInfoUpdate
+    public class AssetPricesUpdate
     {
         /// <summary>
-        /// Asset id of the index
+        /// Asset id
         /// </summary>
         public string AssetId { get; set; }
 
@@ -17,15 +17,10 @@ namespace Lykke.Service.IndicesFacade.Contract
         /// </summary>
         public IList<SourcePriceUpdate> PriceUpdates { get; set; } = new List<SourcePriceUpdate>();
 
-        /// <summary>
-        /// Assets market capitalization updates
-        /// </summary>
-        public IList<AssetMarketCapUpdate> MarketCapUpdates { get; set; } = new List<AssetMarketCapUpdate>();
-
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"{AssetId}";
+            return $"{AssetId}, Prices: [{PriceUpdates.Count}]";
         }
     }
 }

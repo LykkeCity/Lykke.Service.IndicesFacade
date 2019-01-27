@@ -63,11 +63,11 @@ namespace Lykke.Service.IndicesFacade.Controllers
         }
 
         /// <inheritdoc />
-        [HttpGet("{assetId}/assetsInfo")]
-        [ProducesResponseType(typeof(IList<AssetInfo>), (int)HttpStatusCode.OK)]
+        [HttpGet("{assetId}/prices")]
+        [ProducesResponseType(typeof(IList<AssetPrices>), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
         [ProducesResponseType((int)HttpStatusCode.BadRequest)]
-        public async Task<IList<AssetInfo>> GetAssetsInfoAsync(string assetId)
+        public async Task<IList<AssetPrices>> GetPricesAsync(string assetId)
         {
             if (string.IsNullOrWhiteSpace(assetId))
                 throw new ValidationApiException(HttpStatusCode.BadRequest, "Please fill 'assetId' parameter.");
@@ -75,7 +75,7 @@ namespace Lykke.Service.IndicesFacade.Controllers
             if (!_indicesFacadeService.IsPresent(assetId))
                 throw new ValidationApiException(HttpStatusCode.NotFound, $"Index is not found by 'assetId' : {assetId}.");
 
-            return await _indicesFacadeService.GetAssetsInfoAsync(assetId);
+            return await _indicesFacadeService.GetPricesAsync(assetId);
         }
     }
 }
