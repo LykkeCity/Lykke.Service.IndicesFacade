@@ -361,13 +361,19 @@ namespace Lykke.Service.IndicesFacade.Services
             };
         }
 
-        private SourcePriceUpdate Map(string assetId, string exchangeName, decimal price)
+        private AssetPrices Map(string assetId, string exchangeName, decimal price)
         {
-            return new SourcePriceUpdate
+            return new AssetPrices
             {
                 AssetId = assetId,
-                Source = exchangeName,
-                Price = price
+                Prices = new List<SourcePrice>
+                {
+                    new SourcePrice
+                    {
+                        Source = exchangeName,
+                        Price = price
+                    }
+                }
             };
         }
 
@@ -409,7 +415,12 @@ namespace Lykke.Service.IndicesFacade.Services
                 var previousExchangePrice = previous.Prices.FirstOrDefault(x => x.Source == exchangeName);
                 if (previousExchangePrice == null || previousExchangePrice.Price != price)
                 {
-                    assetPricesUpdate.PriceUpdates.Add(Map(assetId, exchangeName, price));
+                    var assetPrices = Map(assetId, exchangeName, price);
+                    var existed = assetPricesUpdate.PriceUpdates.SingleOrDefault(x => x.AssetId == assetPrices.AssetId);
+                    if (existed != null)
+                        existed.Prices.Add(assetPrices.Prices.Single());
+                    else
+                        assetPricesUpdate.PriceUpdates.Add(assetPrices);
                 }
             }
         }
