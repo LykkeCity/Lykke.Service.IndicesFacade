@@ -28,11 +28,11 @@ namespace Lykke.Service.IndicesFacade.RabbitMq.Publishers
             _publisher?.Dispose();
         }
 
-        public void Publish(HistoryElementUpdate historyElementUpdate)
+        public void Publish(HistoryElementUpdate historyElementUpdate, string indexName)
         {
             _publisher.ProduceAsync(historyElementUpdate);
 
-            _log.Info($"Published '{historyElementUpdate.AssetId}' {historyElementUpdate.TimeInterval} update: {historyElementUpdate.ToJson()}.");
+            _log.Info($"Published '{indexName}' {historyElementUpdate.TimeInterval} update: {historyElementUpdate.ToJson()}.");
         }
 
         public void Start()

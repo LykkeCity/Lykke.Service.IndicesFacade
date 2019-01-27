@@ -39,8 +39,8 @@ namespace Lykke.Service.IndicesFacade.Services
         private readonly ConcurrentDictionary<string, PublicIndexHistory> _assetIdsIndex
             = new ConcurrentDictionary<string, PublicIndexHistory>();
 
-        private readonly ConcurrentDictionary<string, IList<Contract.AssetInfo>> _assetIdsAssetInfos
-            = new ConcurrentDictionary<string, IList<Contract.AssetInfo>>();
+        private readonly ConcurrentDictionary<string, IList<AssetPrices>> _assetIdsAssetPrices
+            = new ConcurrentDictionary<string, IList<AssetPrices>>();
 
         private readonly ILog _log;
 
@@ -74,7 +74,10 @@ namespace Lykke.Service.IndicesFacade.Services
 
         public async Task<IList<Index>> GetAllAsync()
         {
-            var result = _assetIdsIndicesCache.Values.OrderBy(x => x.AssetId).ToList();
+            var result = _assetIdsIndicesCache.Values.ToList();
+
+            // Ordering
+            result = result.OrderBy(x => x.AssetId).ToList();
 
             return result;
         }
@@ -85,6 +88,9 @@ namespace Lykke.Service.IndicesFacade.Services
                 return null;
 
             var result = _assetIdsIndicesCache[assetId];
+
+            // Ordering
+            result.Composition = result.Composition.OrderBy(x => x.AssetId).ToList();
 
             return result;
         }
@@ -101,14 +107,19 @@ namespace Lykke.Service.IndicesFacade.Services
             return result;
         }
 
-        public async Task<IList<Contract.AssetInfo>> GetAssetInfosAsync(string assetId)
+        public async Task<IList<AssetPrices>> GetPricesAsync(string assetId)
         {
-            var result = new List<Contract.AssetInfo>();
+            var result = new List<AssetPrices>();
 
-            if (!_assetIdsAssetInfos.ContainsKey(assetId))
+            if (!_assetIdsAssetPrices.ContainsKey(assetId))
                 return result;
 
-            result = _assetIdsAssetInfos[assetId].ToList();
+            result = _assetIdsAssetPrices[assetId].ToList();
+
+            // Ordering
+            result = result.OrderBy(x => x.AssetId).ToList();
+            foreach (var assetPrices in result)
+                assetPrices.Prices = assetPrices.Prices.OrderBy(x => x.Source).ToList();
 
             return result;
         }
@@ -124,7 +135,7 @@ namespace Lykke.Service.IndicesFacade.Services
 
             try
             {
-                await UpdateIndexCache(assetId);
+                await Update(assetId);
             }
             catch (Exception ex)
             {
@@ -148,7 +159,7 @@ namespace Lykke.Service.IndicesFacade.Services
             }
         }
 
-        private async Task UpdateIndexCache(string assetId)
+        private async Task Update(string assetId)
         {
             var publicApi = _assetIdsPublicApi[assetId];
 
@@ -206,10 +217,10 @@ namespace Lykke.Service.IndicesFacade.Services
 
             // Get asset infos
             var assetsInfoApi = _assetIdsAssetsInfoApi[assetId];
-            IReadOnlyList<AssetInfo> assetInfos;
+            IReadOnlyList<AssetInfo> assetsInfo;
             try
             {
-                assetInfos = await assetsInfoApi.GetAllAsync();
+                assetsInfo = await assetsInfoApi.GetAllAsync();
             }
             catch (Exception ex)
             {
@@ -219,8 +230,8 @@ namespace Lykke.Service.IndicesFacade.Services
             }
 
             // Find price changes and publish it
-            var assetsInfos = assetInfos.Select(Map).ToList();
-            CreatePricesUpdateAndPublish(assetId, indexHistory, assetsInfos);
+            var assetPrices = assetsInfo.Select(Map).ToList();
+            CreateAssetPricesUpdateAndPublish(assetId, assetPrices);
         }
 
         private string GetHistoryCacheKey(string assetId, Contract.TimeInterval interval)
@@ -244,42 +255,38 @@ namespace Lykke.Service.IndicesFacade.Services
 
                 // Publish new index history element
                 var newHistoryElement = Create(assetId, timeInterval, updatedHistory.Keys.Last(), updatedHistory.Values.Last());
-                _indicesHistoryUpdatesPublisher.Publish(newHistoryElement);
+                _indicesHistoryUpdatesPublisher.Publish(newHistoryElement, MapAssetIdToIndexName(assetId));
             }
         }
 
-        private void CreatePricesUpdateAndPublish(string assetId, PublicIndexHistory indexHistory, IList<Contract.AssetInfo> assetInfos)
+        private void CreateAssetPricesUpdateAndPublish(string assetId, IList<AssetPrices> assetsPrices)
         {
-            var result = new IndexPricesUpdate { IndexAssetId = assetId };
+            var result = new AssetPricesUpdate { AssetId = assetId };
 
-            PublicIndexHistory previousIndexHistory = new PublicIndexHistory { MiddlePrices = new ConcurrentDictionary<string, decimal>() };
+            var previousAssetsPrices = new List<AssetPrices>();
 
-            if (_assetIdsIndex.ContainsKey(assetId))
-                previousIndexHistory = _assetIdsIndex[assetId];
+            if (_assetIdsAssetPrices.ContainsKey(assetId))
+                previousAssetsPrices = _assetIdsAssetPrices[assetId].ToList();
 
-            var previousAssetInfos = new List<Contract.AssetInfo>();
-
-            if (_assetIdsAssetInfos.ContainsKey(assetId))
-                previousAssetInfos = _assetIdsAssetInfos[assetId].ToList();
-
-            foreach (var assetInfo in assetInfos)
+            foreach (var assetPrices in assetsPrices)
             {
-                var previousAssetInfo = previousAssetInfos.FirstOrDefault(x => x.AssetId == assetInfo.AssetId);
-                if (previousAssetInfo == null)
-                    previousAssetInfo = new Contract.AssetInfo();
+                var previousAssetPrices = previousAssetsPrices.FirstOrDefault(x => x.AssetId == assetPrices.AssetId);
+                if (previousAssetPrices == null)
+                    previousAssetPrices = new AssetPrices();
 
-                FillMarketCapUpdates(result, assetInfo, previousAssetInfo);
-
-                FillExchangePricesUpdates(result, assetInfo, previousAssetInfo);
+                FillAssetPricesUpdates(result, assetPrices, previousAssetPrices);
             }
 
-            FillUsingPricesUpdates(result, indexHistory, previousIndexHistory);
+            // Ordering
+            result.PriceUpdates = result.PriceUpdates.OrderBy(x => x.AssetId).ToList();
+            foreach (var priceUpdate in result.PriceUpdates)
+                priceUpdate.Prices = priceUpdate.Prices.OrderBy(x => x.Source).ToList();
 
             // Publish
-            _indicesPriceUpdatesPublisher.Publish(result);
-
-            _assetIdsIndex[assetId] = indexHistory;
-            _assetIdsAssetInfos[assetId] = assetInfos;
+            if (result.PriceUpdates.Any())
+                _indicesPriceUpdatesPublisher.Publish(result, MapAssetIdToIndexName(assetId));
+            
+            _assetIdsAssetPrices[assetId] = assetsPrices;
         }
 
         private Index Map(string assetId, PublicIndexHistory indexHistory, KeyNumbers keyNumbers)
@@ -288,7 +295,7 @@ namespace Lykke.Service.IndicesFacade.Services
             {
                 AssetId = assetId,
                 Name = _assetIdsDisplayIds[assetId],
-                Composition = Map(indexHistory.Weights, indexHistory.MiddlePrices),
+                Composition = Map(indexHistory.Weights, indexHistory.MiddlePrices, indexHistory.MarketCaps),
                 Value = indexHistory.Value,
                 Timestamp = indexHistory.Time,
                 // key numbers
@@ -302,10 +309,12 @@ namespace Lykke.Service.IndicesFacade.Services
             };
         }
 
-        private IList<Constituent> Map(IDictionary<string, decimal> weights, IDictionary<string, decimal> prices)
+        private IList<Constituent> Map(IDictionary<string, decimal> weights, IDictionary<string, decimal> prices, IReadOnlyList<AssetMarketCap> marketCaps)
         {
-            if (weights.Count != prices.Count)
-                throw new ValidationException($"Count of weights ({weights.Count}) and count of prices ({prices.Count}) are not equals.");
+            if (weights.Count != prices.Count || prices.Count != marketCaps.Count)
+                throw new ValidationException($"Count of weights ({weights.Count})," +
+                                              $"count of prices ({prices.Count})," +
+                                              $"count of market caps ({marketCaps.Count}) are not equals.");
 
             var result = new List<Constituent>();
 
@@ -314,12 +323,14 @@ namespace Lykke.Service.IndicesFacade.Services
                 var asset = assetWeight.Key;
                 var weight = assetWeight.Value;
                 var price = prices[asset];
+                var marketCap = marketCaps.Single(x => x.Asset == asset).MarketCap.Value;
 
                 var constituent = new Constituent
                 {
                     AssetId = asset,
                     Weight = weight,
-                    Price = price
+                    Price = price,
+                    MarketCap = marketCap
                 };
 
                 result.Add(constituent);
@@ -333,15 +344,15 @@ namespace Lykke.Service.IndicesFacade.Services
             return history.Select(x => new HistoryElement {Timestamp = x.Key, Value = x.Value}).ToList();
         }
 
-        private IList<ExchangePrice> Map(IReadOnlyDictionary<string, decimal> prices)
+        private IList<SourcePrice> Map(IReadOnlyDictionary<string, decimal> prices)
         {
-            var result = new List<ExchangePrice>();
+            var result = new List<SourcePrice>();
 
             foreach (var price in prices)
             {
-                result.Add(new ExchangePrice
+                result.Add(new SourcePrice
                 {
-                    ExchangeName = Regex.Replace(price.Key, @"\(([^\)]*)\)", ""), // remove '(*everything*)'
+                    Source = Regex.Replace(price.Key, @"\(([^\)]*)\)", ""), // remove '(*everything*)'
                     Price = price.Value
                 });
             }
@@ -349,41 +360,37 @@ namespace Lykke.Service.IndicesFacade.Services
             return result;
         }
 
-        private AssetMarketCapUpdate MapMarketCapUpdate(Contract.AssetInfo assetInfo)
+        private AssetMarketCapUpdate MapMarketCapUpdate(AssetMarketCap assetMarketCap)
         {
             return new AssetMarketCapUpdate
             {
-                AssetId = assetInfo.AssetId,
-                MarketCap = assetInfo.MarketCap
+                AssetId = assetMarketCap.Asset,
+                MarketCap = assetMarketCap.MarketCap.Value
             };
         }
 
-        private AssetPriceUpdate MapAssetPriceUpdate(string assetId, decimal price)
+        private AssetPrices Map(AssetInfo assetInfo)
         {
-            return new AssetPriceUpdate
-            {
-                AssetId = assetId,
-                Price = price
-            };
-        }
-
-        private Contract.AssetInfo Map(AssetInfo assetInfo)
-        {
-            return new Contract.AssetInfo
+            return new AssetPrices
             {
                 AssetId = assetInfo.Asset,
-                MarketCap = assetInfo.MarketCap,
                 Prices = Map(assetInfo.Prices)
             };
         }
 
-        private ExchangePriceUpdate Map(string assetId, string exchangeName, decimal price)
+        private AssetPrices Map(string assetId, string exchangeName, decimal price)
         {
-            return new ExchangePriceUpdate
+            return new AssetPrices
             {
                 AssetId = assetId,
-                ExchangeName = exchangeName,
-                Price = price
+                Prices = new List<SourcePrice>
+                {
+                    new SourcePrice
+                    {
+                        Source = exchangeName,
+                        Price = price
+                    }
+                }
             };
         }
 
@@ -413,40 +420,24 @@ namespace Lykke.Service.IndicesFacade.Services
             return indexSettings.IndexName;
         }
 
-        private void FillMarketCapUpdates(IndexPricesUpdate indexPricesUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
-        {
-            if (previous.MarketCap != current.MarketCap)
-                indexPricesUpdate.AssetMarketCapUpdates.Add(MapMarketCapUpdate(current));
-        }
-
-        private void FillExchangePricesUpdates(IndexPricesUpdate indexPricesUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
+        private void FillAssetPricesUpdates(AssetPricesUpdate assetPricesUpdate, AssetPrices current, AssetPrices previous)
         {
             var assetId = current.AssetId;
 
             foreach (var exchangePrice in current.Prices)
             {
-                var exchangeName = exchangePrice.ExchangeName;
+                var exchangeName = exchangePrice.Source;
                 var price = exchangePrice.Price;
 
-                var previousExchangePrice = previous.Prices.FirstOrDefault(x => x.ExchangeName == exchangeName);
+                var previousExchangePrice = previous.Prices.FirstOrDefault(x => x.Source == exchangeName);
                 if (previousExchangePrice == null || previousExchangePrice.Price != price)
                 {
-                    indexPricesUpdate.ExchangePriceUpdates.Add(Map(assetId, exchangeName, price));
-                }
-            }
-        }
-
-        private void FillUsingPricesUpdates(IndexPricesUpdate indexPricesUpdate, PublicIndexHistory current, PublicIndexHistory previous)
-        {
-            foreach (var middlePrice in current.MiddlePrices)
-            {
-                var asset = middlePrice.Key;
-                var price = middlePrice.Value;
-
-                var previousUsingPrice = previous.MiddlePrices.FirstOrDefault(x => x.Key == asset).Value;
-                if (previousUsingPrice == 0 || previousUsingPrice != price)
-                {
-                    indexPricesUpdate.AssetPriceUpdates.Add(MapAssetPriceUpdate(asset, price));
+                    var assetPrices = Map(assetId, exchangeName, price);
+                    var existed = assetPricesUpdate.PriceUpdates.SingleOrDefault(x => x.AssetId == assetPrices.AssetId);
+                    if (existed != null)
+                        existed.Prices.Add(assetPrices.Prices.Single());
+                    else
+                        assetPricesUpdate.PriceUpdates.Add(assetPrices);
                 }
             }
         }
