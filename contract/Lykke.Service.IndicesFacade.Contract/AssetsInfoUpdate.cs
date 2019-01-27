@@ -3,7 +3,7 @@
 namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
-    /// represents an index assets info update
+    /// Represents an index assets info update
     /// </summary>
     public class AssetsInfoUpdate
     {
@@ -18,7 +18,7 @@ namespace Lykke.Service.IndicesFacade.Contract
         public IList<SourcePriceUpdate> PriceUpdates { get; set; } = new List<SourcePriceUpdate>();
 
         /// <summary>
-        /// Asset market capitalization updates
+        /// Assets market capitalization updates
         /// </summary>
         public IList<AssetMarketCapUpdate> MarketCapUpdates { get; set; } = new List<AssetMarketCapUpdate>();
 

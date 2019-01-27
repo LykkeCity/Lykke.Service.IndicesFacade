@@ -18,7 +18,7 @@ namespace Lykke.Service.IndicesFacade.Contract
         public decimal MarketCap { get; set; }
 
         /// <summary>
-        /// Exchange prices of the asset
+        /// Prices of the asset
         /// </summary>
         public IList<SourcePrice> Prices { get; set; } = new List<SourcePrice>();
 
