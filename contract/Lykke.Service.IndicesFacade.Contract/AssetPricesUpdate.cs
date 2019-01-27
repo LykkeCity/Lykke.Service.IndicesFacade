@@ -3,12 +3,12 @@
 namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
-    /// Represents an asset prices update
+    /// Represents index asset price updates
     /// </summary>
     public class AssetPricesUpdate
     {
         /// <summary>
-        /// Asset id
+        /// Index asset id
         /// </summary>
         public string AssetId { get; set; }
 
