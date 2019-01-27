@@ -101,7 +101,7 @@ namespace Lykke.Service.IndicesFacade.Services
             return result;
         }
 
-        public async Task<IList<Contract.AssetInfo>> GetAssetInfosAsync(string assetId)
+        public async Task<IList<Contract.AssetInfo>> GetAssetsInfoAsync(string assetId)
         {
             var result = new List<Contract.AssetInfo>();
 
@@ -244,13 +244,13 @@ namespace Lykke.Service.IndicesFacade.Services
 
                 // Publish new index history element
                 var newHistoryElement = Create(assetId, timeInterval, updatedHistory.Keys.Last(), updatedHistory.Values.Last());
-                _indicesHistoryUpdatesPublisher.Publish(newHistoryElement);
+                _indicesHistoryUpdatesPublisher.Publish(newHistoryElement, MapAssetIdToIndexName(assetId));
             }
         }
 
         private void CreatePricesUpdateAndPublish(string assetId, PublicIndexHistory indexHistory, IList<Contract.AssetInfo> assetInfos)
         {
-            var result = new IndexPricesUpdate { IndexAssetId = assetId };
+            var result = new AssetsInfoUpdate { AssetId = assetId };
 
             PublicIndexHistory previousIndexHistory = new PublicIndexHistory { MiddlePrices = new ConcurrentDictionary<string, decimal>() };
 
@@ -276,7 +276,7 @@ namespace Lykke.Service.IndicesFacade.Services
             FillUsingPricesUpdates(result, indexHistory, previousIndexHistory);
 
             // Publish
-            _indicesPriceUpdatesPublisher.Publish(result);
+            _indicesPriceUpdatesPublisher.Publish(result, MapAssetIdToIndexName(assetId));
 
             _assetIdsIndex[assetId] = indexHistory;
             _assetIdsAssetInfos[assetId] = assetInfos;
@@ -333,15 +333,15 @@ namespace Lykke.Service.IndicesFacade.Services
             return history.Select(x => new HistoryElement {Timestamp = x.Key, Value = x.Value}).ToList();
         }
 
-        private IList<ExchangePrice> Map(IReadOnlyDictionary<string, decimal> prices)
+        private IList<SourcePrice> Map(IReadOnlyDictionary<string, decimal> prices)
         {
-            var result = new List<ExchangePrice>();
+            var result = new List<SourcePrice>();
 
             foreach (var price in prices)
             {
-                result.Add(new ExchangePrice
+                result.Add(new SourcePrice
                 {
-                    ExchangeName = Regex.Replace(price.Key, @"\(([^\)]*)\)", ""), // remove '(*everything*)'
+                    Source = Regex.Replace(price.Key, @"\(([^\)]*)\)", ""), // remove '(*everything*)'
                     Price = price.Value
                 });
             }
@@ -377,12 +377,12 @@ namespace Lykke.Service.IndicesFacade.Services
             };
         }
 
-        private ExchangePriceUpdate Map(string assetId, string exchangeName, decimal price)
+        private SourcePriceUpdate Map(string assetId, string exchangeName, decimal price)
         {
-            return new ExchangePriceUpdate
+            return new SourcePriceUpdate
             {
                 AssetId = assetId,
-                ExchangeName = exchangeName,
+                Source = exchangeName,
                 Price = price
             };
         }
@@ -413,30 +413,30 @@ namespace Lykke.Service.IndicesFacade.Services
             return indexSettings.IndexName;
         }
 
-        private void FillMarketCapUpdates(IndexPricesUpdate indexPricesUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
+        private void FillMarketCapUpdates(AssetsInfoUpdate assetsInfoUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
         {
             if (previous.MarketCap != current.MarketCap)
-                indexPricesUpdate.AssetMarketCapUpdates.Add(MapMarketCapUpdate(current));
+                assetsInfoUpdate.MarketCapUpdates.Add(MapMarketCapUpdate(current));
         }
 
-        private void FillExchangePricesUpdates(IndexPricesUpdate indexPricesUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
+        private void FillExchangePricesUpdates(AssetsInfoUpdate assetsInfoUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
         {
             var assetId = current.AssetId;
 
             foreach (var exchangePrice in current.Prices)
             {
-                var exchangeName = exchangePrice.ExchangeName;
+                var exchangeName = exchangePrice.Source;
                 var price = exchangePrice.Price;
 
-                var previousExchangePrice = previous.Prices.FirstOrDefault(x => x.ExchangeName == exchangeName);
+                var previousExchangePrice = previous.Prices.FirstOrDefault(x => x.Source == exchangeName);
                 if (previousExchangePrice == null || previousExchangePrice.Price != price)
                 {
-                    indexPricesUpdate.ExchangePriceUpdates.Add(Map(assetId, exchangeName, price));
+                    assetsInfoUpdate.PriceUpdates.Add(Map(assetId, exchangeName, price));
                 }
             }
         }
 
-        private void FillUsingPricesUpdates(IndexPricesUpdate indexPricesUpdate, PublicIndexHistory current, PublicIndexHistory previous)
+        private void FillUsingPricesUpdates(AssetsInfoUpdate assetsInfoUpdate, PublicIndexHistory current, PublicIndexHistory previous)
         {
             foreach (var middlePrice in current.MiddlePrices)
             {
@@ -446,7 +446,7 @@ namespace Lykke.Service.IndicesFacade.Services
                 var previousUsingPrice = previous.MiddlePrices.FirstOrDefault(x => x.Key == asset).Value;
                 if (previousUsingPrice == 0 || previousUsingPrice != price)
                 {
-                    indexPricesUpdate.AssetPriceUpdates.Add(MapAssetPriceUpdate(asset, price));
+                    assetsInfoUpdate.AssetPriceUpdates.Add(MapAssetPriceUpdate(asset, price));
                 }
             }
         }

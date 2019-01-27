@@ -1,29 +1,29 @@
 ﻿namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
-    /// Update of the exchange price
+    /// Source update of the price
     /// </summary>
-    public class ExchangePriceUpdate
+    public class SourcePriceUpdate
     {
+        /// <summary>
+        /// Name of the source
+        /// </summary>
+        public string Source { get; set; }
+
         /// <summary>
         /// Asset id
         /// </summary>
         public string AssetId { get; set; }
 
         /// <summary>
-        /// Name of the exchange
-        /// </summary>
-        public string ExchangeName { get; set; }
-
-        /// <summary>
-        /// Price on the exchange
+        /// Price on the source
         /// </summary>
         public decimal Price { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"{AssetId}, {ExchangeName}, {Price}";
+            return $"{Source}, {AssetId}, {Price}";
         }
     }
 }

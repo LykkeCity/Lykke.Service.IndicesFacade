@@ -19,6 +19,7 @@ namespace Lykke.Service.IndicesFacade.Controllers
             _indicesFacadeService = indicesFacadeService;
         }
 
+        /// <inheritdoc />
         [HttpGet("")]
         [ProducesResponseType(typeof(IList<Index>), (int)HttpStatusCode.OK)]
         public async Task<IList<Index>> GetAllAsync()
@@ -26,6 +27,7 @@ namespace Lykke.Service.IndicesFacade.Controllers
             return await _indicesFacadeService.GetAllAsync();
         }
 
+        /// <inheritdoc />
         [HttpGet("{assetId}")]
         [ProducesResponseType(typeof(Index), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
@@ -41,6 +43,7 @@ namespace Lykke.Service.IndicesFacade.Controllers
             return await _indicesFacadeService.GetAsync(assetId);
         }
 
+        /// <inheritdoc />
         [HttpGet("{assetId}/history/{timeInterval}")]
         [ProducesResponseType(typeof(IList<HistoryElement>), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
@@ -59,11 +62,12 @@ namespace Lykke.Service.IndicesFacade.Controllers
             return await _indicesFacadeService.GetHistoryAsync(assetId, timeInterval);
         }
 
+        /// <inheritdoc />
         [HttpGet("{assetId}/assetsInfo")]
         [ProducesResponseType(typeof(IList<AssetInfo>), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
         [ProducesResponseType((int)HttpStatusCode.BadRequest)]
-        public async Task<IList<AssetInfo>> GetAssetInfosAsync(string assetId)
+        public async Task<IList<AssetInfo>> GetAssetsInfoAsync(string assetId)
         {
             if (string.IsNullOrWhiteSpace(assetId))
                 throw new ValidationApiException(HttpStatusCode.BadRequest, "Please fill 'assetId' parameter.");
@@ -71,7 +75,7 @@ namespace Lykke.Service.IndicesFacade.Controllers
             if (!_indicesFacadeService.IsPresent(assetId))
                 throw new ValidationApiException(HttpStatusCode.NotFound, $"Index is not found by 'assetId' : {assetId}.");
 
-            return await _indicesFacadeService.GetAssetInfosAsync(assetId);
+            return await _indicesFacadeService.GetAssetsInfoAsync(assetId);
         }
     }
 }

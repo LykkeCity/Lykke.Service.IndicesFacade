@@ -20,7 +20,7 @@ namespace Lykke.Service.IndicesFacade.Contract
         /// <summary>
         /// Exchange prices of the asset
         /// </summary>
-        public IList<ExchangePrice> Prices { get; set; } = new List<ExchangePrice>();
+        public IList<SourcePrice> Prices { get; set; } = new List<SourcePrice>();
 
         /// <inheritdoc/>
         public override string ToString()
