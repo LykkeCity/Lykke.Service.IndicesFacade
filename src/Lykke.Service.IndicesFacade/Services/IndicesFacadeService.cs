@@ -206,10 +206,10 @@ namespace Lykke.Service.IndicesFacade.Services
 
             // Get asset infos
             var assetsInfoApi = _assetIdsAssetsInfoApi[assetId];
-            IReadOnlyList<AssetInfo> assetInfos;
+            IReadOnlyList<AssetInfo> assetsInfo;
             try
             {
-                assetInfos = await assetsInfoApi.GetAllAsync();
+                assetsInfo = await assetsInfoApi.GetAllAsync();
             }
             catch (Exception ex)
             {
@@ -219,8 +219,8 @@ namespace Lykke.Service.IndicesFacade.Services
             }
 
             // Find price changes and publish it
-            var assetsInfos = assetInfos.Select(Map).ToList();
-            CreatePricesUpdateAndPublish(assetId, indexHistory, assetsInfos);
+            var mappedAssetsInfo = assetsInfo.Select(Map).ToList();
+            CreateAssetsInfoUpdateAndPublish(assetId, mappedAssetsInfo);
         }
 
         private string GetHistoryCacheKey(string assetId, Contract.TimeInterval interval)
@@ -248,18 +248,18 @@ namespace Lykke.Service.IndicesFacade.Services
             }
         }
 
-        private void CreatePricesUpdateAndPublish(string assetId, PublicIndexHistory indexHistory, IList<Contract.AssetInfo> assetInfos)
+        private void CreateAssetsInfoUpdateAndPublish(string assetId, IList<Contract.AssetInfo> assetsInfo)
         {
             var result = new AssetsInfoUpdate { AssetId = assetId };
 
-            var previousAssetInfos = new List<Contract.AssetInfo>();
+            var previousAssetsInfo = new List<Contract.AssetInfo>();
 
             if (_assetIdsAssetInfos.ContainsKey(assetId))
-                previousAssetInfos = _assetIdsAssetInfos[assetId].ToList();
+                previousAssetsInfo = _assetIdsAssetInfos[assetId].ToList();
 
-            foreach (var assetInfo in assetInfos)
+            foreach (var assetInfo in assetsInfo)
             {
-                var previousAssetInfo = previousAssetInfos.FirstOrDefault(x => x.AssetId == assetInfo.AssetId);
+                var previousAssetInfo = previousAssetsInfo.FirstOrDefault(x => x.AssetId == assetInfo.AssetId);
                 if (previousAssetInfo == null)
                     previousAssetInfo = new Contract.AssetInfo();
 
@@ -270,9 +270,8 @@ namespace Lykke.Service.IndicesFacade.Services
 
             // Publish
             _indicesPriceUpdatesPublisher.Publish(result, MapAssetIdToIndexName(assetId));
-
-            _assetIdsIndex[assetId] = indexHistory;
-            _assetIdsAssetInfos[assetId] = assetInfos;
+            
+            _assetIdsAssetInfos[assetId] = assetsInfo;
         }
 
         private Index Map(string assetId, PublicIndexHistory indexHistory, KeyNumbers keyNumbers)
