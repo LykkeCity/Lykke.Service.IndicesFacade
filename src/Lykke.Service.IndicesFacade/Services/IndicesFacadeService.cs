@@ -74,7 +74,10 @@ namespace Lykke.Service.IndicesFacade.Services
 
         public async Task<IList<Index>> GetAllAsync()
         {
-            var result = _assetIdsIndicesCache.Values.OrderBy(x => x.AssetId).ToList();
+            var result = _assetIdsIndicesCache.Values.ToList();
+
+            // Ordering
+            result = result.OrderBy(x => x.AssetId).ToList();
 
             return result;
         }
@@ -85,6 +88,9 @@ namespace Lykke.Service.IndicesFacade.Services
                 return null;
 
             var result = _assetIdsIndicesCache[assetId];
+
+            // Ordering
+            result.Composition = result.Composition.OrderBy(x => x.AssetId).ToList();
 
             return result;
         }
@@ -109,6 +115,11 @@ namespace Lykke.Service.IndicesFacade.Services
                 return result;
 
             result = _assetIdsAssetPrices[assetId].ToList();
+
+            // Ordering
+            result = result.OrderBy(x => x.AssetId).ToList();
+            foreach (var assetPrices in result)
+                assetPrices.Prices = assetPrices.Prices.OrderBy(x => x.Source).ToList();
 
             return result;
         }
@@ -265,6 +276,11 @@ namespace Lykke.Service.IndicesFacade.Services
 
                 FillAssetPricesUpdates(result, assetPrices, previousAssetPrices);
             }
+
+            // Ordering
+            result.PriceUpdates = result.PriceUpdates.OrderBy(x => x.AssetId).ToList();
+            foreach (var priceUpdate in result.PriceUpdates)
+                priceUpdate.Prices = priceUpdate.Prices.OrderBy(x => x.Source).ToList();
 
             // Publish
             if (result.PriceUpdates.Any())
