@@ -14,6 +14,8 @@ IndicesFacadeService:
             settings-key: IndicesFacadeService-PublishIndicesUpdatesExchange
         PublishIndicesHistoryUpdatesExchange:
             settings-key: IndicesFacadeService-PublishIndicesHistoryUpdatesExchange
+        PublishIndicesPriceUpdatesExchange:
+            settings-key: IndicesFacadeService-PublishIndicesPriceUpdatesExchange
 
 CryptoIndexServiceClient:
   Instances:

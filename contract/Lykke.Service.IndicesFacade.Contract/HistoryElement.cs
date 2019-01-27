@@ -19,5 +19,11 @@ namespace Lykke.Service.IndicesFacade.Contract
         /// </summary>
         [JsonProperty(PropertyName = "dt")]
         public DateTime Timestamp { get; set; }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return $"{Value}, {Timestamp}";
+        }
     }
 }

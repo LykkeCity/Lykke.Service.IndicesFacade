@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Common.Log;
 using Lykke.Common.Log;
@@ -15,6 +16,7 @@ using Lykke.Service.IndicesFacade.Contract;
 using Lykke.Service.IndicesFacade.RabbitMq.Publishers;
 using Lykke.Service.IndicesFacade.Settings;
 using Microsoft.Rest;
+using AssetInfo = Lykke.Service.CryptoIndex.Client.Models.AssetInfo;
 using TimeInterval = Lykke.Service.CryptoIndex.Client.Models.TimeInterval;
 
 namespace Lykke.Service.IndicesFacade.Services
@@ -22,21 +24,30 @@ namespace Lykke.Service.IndicesFacade.Services
     public class IndicesFacadeService : IIndicesFacadeApi
     {
         private readonly CryptoIndexServiceClientInstancesSettings _cryptoIndexServiceClientInstancesSettings;
-        private readonly ConcurrentDictionary<string, IPublicApi> _assetIdsClients = new ConcurrentDictionary<string, IPublicApi>();
+        private readonly ConcurrentDictionary<string, IPublicApi> _assetIdsPublicApi = new ConcurrentDictionary<string, IPublicApi>();
+        private readonly ConcurrentDictionary<string, IAssetsInfoApi> _assetIdsAssetsInfoApi = new ConcurrentDictionary<string, IAssetsInfoApi>();
         private readonly ConcurrentDictionary<string, Index> _assetIdsIndicesCache = new ConcurrentDictionary<string, Index>();
         private readonly ConcurrentDictionary<string, IList<HistoryElement>> _assetIdIntervalsHistoriesCache = new ConcurrentDictionary<string, IList<HistoryElement>>();
         private readonly IndicesUpdatesPublisher _indicesUpdatesPublisher;
         private readonly IndicesHistoryUpdatesPublisher _indicesHistoryUpdatesPublisher;
+        private readonly IndicesPriceUpdatesPublisher _indicesPriceUpdatesPublisher;
         private readonly IAssetsReadModelRepository _assetsReadModelRepository;
 
         private readonly ConcurrentDictionary<string, string> _assetIdsDisplayIds
             = new ConcurrentDictionary<string, string>();
+
+        private readonly ConcurrentDictionary<string, PublicIndexHistory> _assetIdsIndex
+            = new ConcurrentDictionary<string, PublicIndexHistory>();
+
+        private readonly ConcurrentDictionary<string, IList<Contract.AssetInfo>> _assetIdsAssetInfos
+            = new ConcurrentDictionary<string, IList<Contract.AssetInfo>>();
 
         private readonly ILog _log;
 
         public IndicesFacadeService(CryptoIndexServiceClientInstancesSettings cryptoIndexServiceClientInstancesSettings,
             IndicesUpdatesPublisher indicesUpdatesPublisher,
             IndicesHistoryUpdatesPublisher indicesHistoryUpdatesPublisher,
+            IndicesPriceUpdatesPublisher indicesPriceUpdatesPublisher,
             IAssetsReadModelRepository assetsReadModelRepository,
             ILogFactory logFactory)
         {
@@ -44,12 +55,16 @@ namespace Lykke.Service.IndicesFacade.Services
 
             foreach (var instance in _cryptoIndexServiceClientInstancesSettings.Instances)
             {
-                var client = CreateApiClient(instance.ServiceUrl);
-                _assetIdsClients[instance.AssetId] = client;
+                var publicApiClient = CreatePublicApiClient(instance.ServiceUrl);
+                _assetIdsPublicApi[instance.AssetId] = publicApiClient;
+
+                var assetsInfoApiClient = CreateAssetsInfoApiClient(instance.ServiceUrl);
+                _assetIdsAssetsInfoApi[instance.AssetId] = assetsInfoApiClient;
             }
 
             _indicesUpdatesPublisher = indicesUpdatesPublisher;
             _indicesHistoryUpdatesPublisher = indicesHistoryUpdatesPublisher;
+            _indicesPriceUpdatesPublisher = indicesPriceUpdatesPublisher;
 
             _assetsReadModelRepository = assetsReadModelRepository;
             InitializeAssetsDisplayIds();
@@ -66,6 +81,9 @@ namespace Lykke.Service.IndicesFacade.Services
 
         public async Task<Index> GetAsync(string assetId)
         {
+            if (!_assetIdsIndicesCache.ContainsKey(assetId))
+                return null;
+
             var result = _assetIdsIndicesCache[assetId];
 
             return result;
@@ -73,6 +91,9 @@ namespace Lykke.Service.IndicesFacade.Services
 
         public async Task<IList<HistoryElement>> GetHistoryAsync(string assetId, Contract.TimeInterval timeInterval)
         {
+            if (!_assetIdIntervalsHistoriesCache.ContainsKey(assetId))
+                return null;
+
             var key = GetHistoryCacheKey(assetId, timeInterval);
 
             var result = _assetIdIntervalsHistoriesCache[key];
@@ -80,9 +101,21 @@ namespace Lykke.Service.IndicesFacade.Services
             return result;
         }
 
+        public async Task<IList<Contract.AssetInfo>> GetAssetInfosAsync(string assetId)
+        {
+            var result = new List<Contract.AssetInfo>();
+
+            if (!_assetIdsAssetInfos.ContainsKey(assetId))
+                return result;
+
+            result = _assetIdsAssetInfos[assetId].ToList();
+
+            return result;
+        }
+
         public bool IsPresent(string assetId)
         {
-            return _assetIdsClients.ContainsKey(assetId);
+            return _assetIdsPublicApi.ContainsKey(assetId);
         }
 
         public async Task Handle(IndexTickPrice indexTickPrice)
@@ -101,7 +134,7 @@ namespace Lykke.Service.IndicesFacade.Services
 
         private void InitializeAssetsDisplayIds()
         {
-            foreach (var assetId in _assetIdsClients.Keys.ToList())
+            foreach (var assetId in _assetIdsPublicApi.Keys.ToList())
             {
                 var asset = _assetsReadModelRepository.TryGet(assetId);
                 if (asset != null)
@@ -117,7 +150,7 @@ namespace Lykke.Service.IndicesFacade.Services
 
         private async Task UpdateIndexCache(string assetId)
         {
-            var publicApi = _assetIdsClients[assetId];
+            var publicApi = _assetIdsPublicApi[assetId];
 
             PublicIndexHistory indexHistory;
             try
@@ -170,6 +203,29 @@ namespace Lykke.Service.IndicesFacade.Services
             UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Hour24, updatedHistory24H);
             UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day5, updatedHistory5D);
             UpdateHistoryCacheAndPublish(assetId, Contract.TimeInterval.Day30, updatedHistory30D);
+
+            // Get asset infos
+            var assetsInfoApi = _assetIdsAssetsInfoApi[assetId];
+            IReadOnlyList<AssetInfo> assetInfos;
+            try
+            {
+                assetInfos = await assetsInfoApi.GetAllAsync();
+            }
+            catch (Exception ex)
+            {
+                _log.Warning($"Something went wrong while {nameof(assetsInfoApi.GetAllAsync)} element from '{MapAssetIdToIndexName(assetId)}': ", ex);
+
+                return;
+            }
+
+            // Find price changes and publish it
+            var assetsInfos = assetInfos.Select(Map).ToList();
+            CreatePricesUpdateAndPublish(assetId, indexHistory, assetsInfos);
+        }
+
+        private string GetHistoryCacheKey(string assetId, Contract.TimeInterval interval)
+        {
+            return $"{assetId}-{interval}";
         }
 
         private void UpdateHistoryCacheAndPublish(string assetId, Contract.TimeInterval timeInterval, IDictionary<DateTime, decimal> updatedHistory)
@@ -192,22 +248,38 @@ namespace Lykke.Service.IndicesFacade.Services
             }
         }
 
-        private string GetHistoryCacheKey(string assetId, Contract.TimeInterval interval)
+        private void CreatePricesUpdateAndPublish(string assetId, PublicIndexHistory indexHistory, IList<Contract.AssetInfo> assetInfos)
         {
-            return $"{assetId}-{interval}";
-        }
+            var result = new IndexPricesUpdate { IndexAssetId = assetId };
 
-        private IPublicApi CreateApiClient(string url)
-        {
-            var generator = HttpClientGenerator.HttpClientGenerator.BuildForUrl(url)
-                .WithAdditionalCallsWrapper(new ExceptionHandlerCallsWrapper())
-                .WithoutRetries()
-                .WithoutCaching()
-                .Create();
+            PublicIndexHistory previousIndexHistory = new PublicIndexHistory { MiddlePrices = new ConcurrentDictionary<string, decimal>() };
 
-            var client = generator.Generate<IPublicApi>();
+            if (_assetIdsIndex.ContainsKey(assetId))
+                previousIndexHistory = _assetIdsIndex[assetId];
 
-            return client;
+            var previousAssetInfos = new List<Contract.AssetInfo>();
+
+            if (_assetIdsAssetInfos.ContainsKey(assetId))
+                previousAssetInfos = _assetIdsAssetInfos[assetId].ToList();
+
+            foreach (var assetInfo in assetInfos)
+            {
+                var previousAssetInfo = previousAssetInfos.FirstOrDefault(x => x.AssetId == assetInfo.AssetId);
+                if (previousAssetInfo == null)
+                    previousAssetInfo = new Contract.AssetInfo();
+
+                FillMarketCapUpdates(result, assetInfo, previousAssetInfo);
+
+                FillExchangePricesUpdates(result, assetInfo, previousAssetInfo);
+            }
+
+            FillUsingPricesUpdates(result, indexHistory, previousIndexHistory);
+
+            // Publish
+            _indicesPriceUpdatesPublisher.Publish(result);
+
+            _assetIdsIndex[assetId] = indexHistory;
+            _assetIdsAssetInfos[assetId] = assetInfos;
         }
 
         private Index Map(string assetId, PublicIndexHistory indexHistory, KeyNumbers keyNumbers)
@@ -261,6 +333,60 @@ namespace Lykke.Service.IndicesFacade.Services
             return history.Select(x => new HistoryElement {Timestamp = x.Key, Value = x.Value}).ToList();
         }
 
+        private IList<ExchangePrice> Map(IReadOnlyDictionary<string, decimal> prices)
+        {
+            var result = new List<ExchangePrice>();
+
+            foreach (var price in prices)
+            {
+                result.Add(new ExchangePrice
+                {
+                    ExchangeName = Regex.Replace(price.Key, @"\(([^\)]*)\)", ""), // remove '(*everything*)'
+                    Price = price.Value
+                });
+            }
+
+            return result;
+        }
+
+        private AssetMarketCapUpdate MapMarketCapUpdate(Contract.AssetInfo assetInfo)
+        {
+            return new AssetMarketCapUpdate
+            {
+                AssetId = assetInfo.AssetId,
+                MarketCap = assetInfo.MarketCap
+            };
+        }
+
+        private AssetPriceUpdate MapAssetPriceUpdate(string assetId, decimal price)
+        {
+            return new AssetPriceUpdate
+            {
+                AssetId = assetId,
+                Price = price
+            };
+        }
+
+        private Contract.AssetInfo Map(AssetInfo assetInfo)
+        {
+            return new Contract.AssetInfo
+            {
+                AssetId = assetInfo.Asset,
+                MarketCap = assetInfo.MarketCap,
+                Prices = Map(assetInfo.Prices)
+            };
+        }
+
+        private ExchangePriceUpdate Map(string assetId, string exchangeName, decimal price)
+        {
+            return new ExchangePriceUpdate
+            {
+                AssetId = assetId,
+                ExchangeName = exchangeName,
+                Price = price
+            };
+        }
+
         private string MapIndexNameToAssetId(string indexName)
         {
             var indexSettings = _cryptoIndexServiceClientInstancesSettings
@@ -287,6 +413,44 @@ namespace Lykke.Service.IndicesFacade.Services
             return indexSettings.IndexName;
         }
 
+        private void FillMarketCapUpdates(IndexPricesUpdate indexPricesUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
+        {
+            if (previous.MarketCap != current.MarketCap)
+                indexPricesUpdate.AssetMarketCapUpdates.Add(MapMarketCapUpdate(current));
+        }
+
+        private void FillExchangePricesUpdates(IndexPricesUpdate indexPricesUpdate, Contract.AssetInfo current, Contract.AssetInfo previous)
+        {
+            var assetId = current.AssetId;
+
+            foreach (var exchangePrice in current.Prices)
+            {
+                var exchangeName = exchangePrice.ExchangeName;
+                var price = exchangePrice.Price;
+
+                var previousExchangePrice = previous.Prices.FirstOrDefault(x => x.ExchangeName == exchangeName);
+                if (previousExchangePrice == null || previousExchangePrice.Price != price)
+                {
+                    indexPricesUpdate.ExchangePriceUpdates.Add(Map(assetId, exchangeName, price));
+                }
+            }
+        }
+
+        private void FillUsingPricesUpdates(IndexPricesUpdate indexPricesUpdate, PublicIndexHistory current, PublicIndexHistory previous)
+        {
+            foreach (var middlePrice in current.MiddlePrices)
+            {
+                var asset = middlePrice.Key;
+                var price = middlePrice.Value;
+
+                var previousUsingPrice = previous.MiddlePrices.FirstOrDefault(x => x.Key == asset).Value;
+                if (previousUsingPrice == 0 || previousUsingPrice != price)
+                {
+                    indexPricesUpdate.AssetPriceUpdates.Add(MapAssetPriceUpdate(asset, price));
+                }
+            }
+        }
+
         private HistoryElementUpdate Create(string assetId, Contract.TimeInterval timeInterval, DateTime timestamp, decimal value)
         {
             var result = new HistoryElementUpdate
@@ -297,6 +461,35 @@ namespace Lykke.Service.IndicesFacade.Services
             };
 
             return result;
+        }
+
+        private IPublicApi CreatePublicApiClient(string url)
+        {
+            var generator = GetGenerator(url);
+
+            var client = generator.Generate<IPublicApi>();
+
+            return client;
+        }
+
+        private IAssetsInfoApi CreateAssetsInfoApiClient(string url)
+        {
+            var generator = GetGenerator(url);
+
+            var client = generator.Generate<IAssetsInfoApi>();
+
+            return client;
+        }
+
+        private HttpClientGenerator.HttpClientGenerator GetGenerator(string url)
+        {
+            var generator = HttpClientGenerator.HttpClientGenerator.BuildForUrl(url)
+                .WithAdditionalCallsWrapper(new ExceptionHandlerCallsWrapper())
+                .WithoutRetries()
+                .WithoutCaching()
+                .Create();
+
+            return generator;
         }
     }
 }

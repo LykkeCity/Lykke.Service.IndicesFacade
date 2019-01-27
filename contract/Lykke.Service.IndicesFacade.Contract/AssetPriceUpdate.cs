@@ -1,9 +1,9 @@
 ﻿namespace Lykke.Service.IndicesFacade.Contract
 {
     /// <summary>
-    /// Constituent of the index
+    /// Update of the used price of the asset
     /// </summary>
-    public class Constituent
+    public class AssetPriceUpdate
     {
         /// <summary>
         /// Asset id
@@ -11,19 +11,14 @@
         public string AssetId { get; set; }
 
         /// <summary>
-        /// Weight of the current constituent
-        /// </summary>
-        public decimal Weight { get; set; }
-
-        /// <summary>
-        /// Price of the current constituent
+        /// Using price of the asset
         /// </summary>
         public decimal Price { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"{AssetId}, Price: {Price}, Weight: {Weight}";
+            return $"{AssetId}, {Price}";
         }
     }
 }
