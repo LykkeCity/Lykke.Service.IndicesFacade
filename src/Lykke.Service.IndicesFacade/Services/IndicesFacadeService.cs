@@ -267,7 +267,8 @@ namespace Lykke.Service.IndicesFacade.Services
             }
 
             // Publish
-            _indicesPriceUpdatesPublisher.Publish(result, MapAssetIdToIndexName(assetId));
+            if (result.PriceUpdates.Any())
+                _indicesPriceUpdatesPublisher.Publish(result, MapAssetIdToIndexName(assetId));
             
             _assetIdsAssetPrices[assetId] = assetsPrices;
         }
