@@ -252,11 +252,6 @@ namespace Lykke.Service.IndicesFacade.Services
         {
             var result = new AssetsInfoUpdate { AssetId = assetId };
 
-            PublicIndexHistory previousIndexHistory = new PublicIndexHistory { MiddlePrices = new ConcurrentDictionary<string, decimal>() };
-
-            if (_assetIdsIndex.ContainsKey(assetId))
-                previousIndexHistory = _assetIdsIndex[assetId];
-
             var previousAssetInfos = new List<Contract.AssetInfo>();
 
             if (_assetIdsAssetInfos.ContainsKey(assetId))
@@ -272,8 +267,6 @@ namespace Lykke.Service.IndicesFacade.Services
 
                 FillExchangePricesUpdates(result, assetInfo, previousAssetInfo);
             }
-
-            FillUsingPricesUpdates(result, indexHistory, previousIndexHistory);
 
             // Publish
             _indicesPriceUpdatesPublisher.Publish(result, MapAssetIdToIndexName(assetId));
@@ -358,15 +351,6 @@ namespace Lykke.Service.IndicesFacade.Services
             };
         }
 
-        private AssetPriceUpdate MapAssetPriceUpdate(string assetId, decimal price)
-        {
-            return new AssetPriceUpdate
-            {
-                AssetId = assetId,
-                Price = price
-            };
-        }
-
         private Contract.AssetInfo Map(AssetInfo assetInfo)
         {
             return new Contract.AssetInfo
@@ -432,21 +416,6 @@ namespace Lykke.Service.IndicesFacade.Services
                 if (previousExchangePrice == null || previousExchangePrice.Price != price)
                 {
                     assetsInfoUpdate.PriceUpdates.Add(Map(assetId, exchangeName, price));
-                }
-            }
-        }
-
-        private void FillUsingPricesUpdates(AssetsInfoUpdate assetsInfoUpdate, PublicIndexHistory current, PublicIndexHistory previous)
-        {
-            foreach (var middlePrice in current.MiddlePrices)
-            {
-                var asset = middlePrice.Key;
-                var price = middlePrice.Value;
-
-                var previousUsingPrice = previous.MiddlePrices.FirstOrDefault(x => x.Key == asset).Value;
-                if (previousUsingPrice == 0 || previousUsingPrice != price)
-                {
-                    assetsInfoUpdate.AssetPriceUpdates.Add(MapAssetPriceUpdate(asset, price));
                 }
             }
         }
