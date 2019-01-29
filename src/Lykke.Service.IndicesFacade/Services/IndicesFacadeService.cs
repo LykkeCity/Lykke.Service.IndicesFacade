@@ -97,10 +97,10 @@ namespace Lykke.Service.IndicesFacade.Services
 
         public async Task<IList<HistoryElement>> GetHistoryAsync(string assetId, Contract.TimeInterval timeInterval)
         {
-            if (!_assetIdIntervalsHistoriesCache.ContainsKey(assetId))
-                return null;
-
             var key = GetHistoryCacheKey(assetId, timeInterval);
+
+            if (!_assetIdIntervalsHistoriesCache.ContainsKey(key))
+                return null;
 
             var result = _assetIdIntervalsHistoriesCache[key];
 
